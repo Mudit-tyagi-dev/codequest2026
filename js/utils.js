@@ -6,7 +6,7 @@ const Utils = {
         if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
             return path;
         }
-        const base = window.CodeQuestAPI ? window.CodeQuestAPI.BASE_URL : 'http://43.205.198.229:8000';
+        const base = window.CodeQuestAPI ? window.CodeQuestAPI.BASE_URL : 'https://api.shubhjain.info';
         if (path.startsWith('/')) {
             return base + path;
         }

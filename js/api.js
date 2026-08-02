@@ -1,4 +1,4 @@
-const BASE_URL = "http://43.205.198.229:8000";
+const BASE_URL = "https://api.shubhjain.info";
 
 const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -56,13 +56,7 @@ async function request(path, options = {}) {
     };
     
     try {
-        console.log("Request URL:", url);
         const response = await fetch(url, requestOptions);
-        try {
-            console.log(await response.clone().json());
-        } catch (cloneErr) {
-            // Ignore cloning errors for non-json, images, etc.
-        }
         return await handleResponse(response);
     } catch (error) {
         console.error(`API Request to ${url} failed:`, error);
