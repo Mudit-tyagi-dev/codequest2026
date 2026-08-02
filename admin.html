@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST 2026 | Admin Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            width: 100%;
+            margin: 1.5rem auto;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .portal-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+        }
+
+        .portal-title span {
+            color: var(--accent);
+        }
+
+        /* Tab Layout */
+        .tab-navigation {
+            display: flex;
+            gap: 1rem;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Table styling */
+        .data-table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .data-table th, .data-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background-color: var(--bg);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background-color: rgba(15, 90, 67, 0.01);
+        }
+
+        /* Upload zone styling */
+        #image-upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            text-align: center;
+            background-color: var(--bg);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        #image-upload-zone:hover, #image-upload-zone.dragover {
+            border-color: var(--primary);
+            background-color: rgba(15, 90, 67, 0.02);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 576px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Mini thumbnail */
+        .qr-thumb {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .qr-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="admin-container">
+            
+            <!-- Header panel -->
+            <div class="admin-header">
+                <div>
+                    <h1 class="portal-title">CODE<span>QUEST</span> • Admin Dashboard</h1>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Configure challenges and monitor team scoreboard</p>
+                </div>
+                <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Back to Hub</a>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" onclick="switchTab('tab-questions')">📚 Questions Manager</button>
+                <button class="tab-btn" onclick="switchTab('tab-teams')">👥 Monitor Teams</button>
+            </div>
+
+            <!-- TAB 1: QUESTIONS MANAGER -->
+            <div id="tab-questions" class="tab-content active">
+                
+                <!-- Action bar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--primary);">Question Bank</h3>
+                    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+                        + Create Question
+                    </button>
+                </div>
+
+                <!-- Questions Table -->
+                <div class="data-table-container">
+                    <table class="data-table" id="questions-table">
+                        <thead>
+                            <tr>
+                                <th>Question Title</th>
+                                <th>Type</th>
+                                <th>Points</th>
+                                <th>Status</th>
+                                <th style="text-align: center;">QR Preview</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questions-table-body">
+                            <!-- Dynamic questions go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: MONITOR TEAMS -->
+            <div id="tab-teams" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--primary);">Scoreboard & Progress</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="loadTeamsList()">
+                        🔄 Refresh Teams
+                    </button>
+                </div>
+
+                <!-- Teams Table -->
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Team ID</th>
+                                <th>Team Name</th>
+                                <th>Members</th>
+                                <th>Status</th>
+                                <th>Current Checkpoint</th>
+                                <th>Current Question</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teams-table-body">
+                            <!-- Dynamic teams go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer branding -->
+            <div class="text-center" style="margin-top: 4rem; padding-bottom: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <p style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted);">
+                    Code Quest 2026 • Security Protocol Active
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Question Modal Overlay (Create / Edit) -->
+    <div class="modal-overlay" id="question-modal">
+        <div class="modal-container" style="max-width: 780px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title-text">Create Question</h3>
+                <button class="modal-close" onclick="closeQuestionModal()">&times;</button>
+            </div>
+            
+            <form id="question-form" onsubmit="handleFormSubmit(event)">
+                <div class="modal-body" style="max-height: 70vh;">
+                    
+                    <input type="hidden" id="edit-question-id">
+
+                    <!-- Title -->
+                    <div class="form-group">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" id="title" class="form-control" placeholder="e.g. Decrypt the Array" required autocomplete="off">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" class="form-control" placeholder="Write puzzle clues, snippets, or coordinate parameters..." required></textarea>
+                    </div>
+
+                    <!-- Row 1: Type & Points -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="question_type" class="form-label">Question Type</label>
+                            <select id="question_type" class="form-control" onchange="toggleTypeSpecificSections()" required>
+                                <option value="coding" selected>coding</option>
+                                <option value="mcq">mcq</option>
+                                <option value="qna">qna</option>
+                                <option value="puzzle">puzzle</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="points" class="form-label">Points</label>
+                            <input type="number" id="points" class="form-control" min="0" placeholder="e.g. 100" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Time Limit & Image Upload -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="time_limit_seconds" class="form-label">Time Limit (seconds)</label>
+                            <input type="number" id="time_limit_seconds" class="form-control" min="0" placeholder="e.g. 600 (optional)" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Question Image</label>
+                            <div id="image-upload-zone" onclick="triggerImageFileInput()">
+                                <div id="upload-prompt">
+                                    <span style="font-size: 1.5rem;">📤</span>
+                                    <p style="margin-top: 0.25rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
+                                        Click to Upload Image
+                                    </p>
+                                    <p style="font-size: 0.65rem; color: var(--text-muted);">Max 5 MB (Auto-compressed)</p>
+                                </div>
+                                <div id="upload-preview-container" style="display: none; position: relative; justify-content: center; align-items: center;">
+                                    <img id="upload-preview" src="" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                    <button type="button" class="btn btn-danger btn-sm btn-icon" onclick="clearSelectedImage(event)" style="position: absolute; top: -5px; right: -5px; width: 1.75rem; height: 1.75rem; border-radius: 50%; font-size: 0.9rem; padding: 0; display: flex; align-items: center; justify-content: center;">&times;</button>
+                                </div>
+                                <input type="file" id="image-file-input" accept="image/*" style="display: none;" onchange="handleImageFileSelect(event)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Correct Answer (QnA, Coding, Puzzle) -->
+                    <div class="form-group" id="correct-ans-container">
+                        <label for="correct_ans" class="form-label">Correct Answer</label>
+                        <input type="text" id="correct_ans" class="form-control" placeholder="Solution key value..." autocomplete="off">
+                    </div>
+
+                    <!-- MCQ Options Section -->
+                    <div id="mcq-options-section" style="display: none;">
+                        <div class="section-title">
+                            <span>MCQ Options</span>
+                            <button type="button" class="btn btn-secondary btn-sm" id="add-option-btn" onclick="addOptionRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                                + Add Option
+                            </button>
+                        </div>
+                        <div id="options-container"></div>
+                    </div>
+
+                    <!-- Hints Section -->
+                    <div>
+                        <div class="section-title">
+                            <span>Decryption Hints</span>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addHintRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                                + Add Hint
+                            </button>
+                        </div>
+                        <div id="hints-container"></div>
+                    </div>
+
+                    <!-- Active Toggle Switch -->
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label class="switch-group">
+                            <div class="switch">
+                                <input type="checkbox" id="is_active" checked>
+                                <span class="slider"></span>
+                            </div>
+                            <span class="form-label" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 0.95rem;">
+                                Active Status (available to players)
+                            </span>
+                        </label>
+                    </div>
+
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="closeQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="btn-save-question">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Viewer Modal Overlay -->
+    <div class="modal-overlay" id="qr-modal">
+        <div class="modal-container" style="max-width: 420px; text-align: center;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="qr-modal-title">Coordinate QR Code</h3>
+                <button class="modal-close" onclick="Utils.closeModal('qr-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                <div style="border: 1px solid var(--border); padding: 1.5rem; border-radius: var(--radius); background-color: #fff; box-shadow: var(--shadow-sm); max-width: 280px; width: 100%;">
+                    <img id="qr-modal-image" src="" alt="Question QR" style="width: 100%; height: auto; display: block;">
+                </div>
+                <div id="qr-modal-id" style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted); background: var(--bg); padding: 0.5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); width: 100%; word-break: break-all;">
+                    ID: -
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 1rem;">
+                <a id="qr-modal-download" href="" download="" class="btn btn-primary btn-sm" style="text-decoration: none;">
+                    📥 Download QR
+                </a>
+                <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('qr-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

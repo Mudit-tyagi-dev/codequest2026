@@ -1,485 +1,359 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial UI load
-    toggleTypeSpecificSections();
-    loadSavedQuestions();
-});
+let activeStream = null;
+let scanAnimationId = null;
+let currentTeamId = null;
+let currentTeamQrId = null;
+let activeTeamData = null;
 
-// Fetch and render saved questions
-async function loadSavedQuestions() {
-    const listContainer = document.getElementById('saved-questions-list');
-    listContainer.innerHTML = Utils.getLoaderHTML('Loading saved questions...');
-    
+// Start camera stream and begin frame processing
+async function startCameraScan() {
+    const video = document.getElementById('camera-video');
+    const container = document.getElementById('camera-preview-container');
+    const btnStart = document.getElementById('btn-start-scan');
+
+    // Show scanner overlay
+    container.style.display = 'block';
+    btnStart.disabled = true;
+
     try {
-        const response = await fetch('https://j7jvczrc-8000.inc1.devtunnels.ms/admin/questions/', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Tunnel-Skip-AntiSpam-Page': 'true'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const responseData = await response.json();
-        listContainer.innerHTML = '';
-        
-        let questions = [];
-        if (Array.isArray(responseData)) {
-            questions = responseData;
-        } else if (responseData && Array.isArray(responseData.data)) {
-            questions = responseData.data;
-        }
-        
-        if (questions && questions.length > 0) {
-            questions.forEach(q => {
-                const card = document.createElement('div');
-                card.className = `card question-card ${q.is_active ? '' : 'inactive'}`;
-                card.id = `question-card-${q.id}`;
-                card.style.padding = '1.5rem';
-                card.style.borderTop = 'none';
-                card.style.borderRight = '1px solid var(--border)';
-                card.style.borderBottom = '1px solid var(--border)';
-                card.style.boxShadow = 'var(--shadow-sm)';
-                
-                card.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 0.5rem;">
-                        <div>
-                            <h4 style="margin-bottom: 0.25rem; font-size: 1.1rem; color: var(--text-main); font-weight: 700;">${escapeHtml(q.title)}</h4>
-                            <div style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">ID: ${q.id}</div>
-                        </div>
-                        <span class="badge ${q.is_active ? 'badge-success' : 'badge-neutral'}" style="font-size: 0.65rem; flex-shrink: 0;">
-                            ${q.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </div>
-                    
-                    <p style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 1.25rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;">${escapeHtml(q.description)}</p>
-                    
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem;">
-                        <div><strong>Type:</strong> <span class="badge badge-primary" style="font-size: 0.65rem; text-transform: capitalize;">${q.question_type}</span></div>
-                        <div><strong>Points:</strong> <span class="badge badge-accent" style="font-size: 0.65rem; color: #1e293b;">${q.points} Pts</span></div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 0.75rem;">
-                        <a href="question.html?id=${q.id}" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1; text-decoration: none; text-align: center; font-size: 0.8rem; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; gap: 0.25rem;">👁 Preview</a>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteQuestion(${q.id})" style="flex: 1; font-size: 0.8rem; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; gap: 0.25rem;">🗑 Delete</button>
-                    </div>
-                `;
-                listContainer.appendChild(card);
-            });
-        } else {
-            listContainer.innerHTML = `
-                <div class="card text-center" style="grid-column: 1 / -1; padding: 3rem 1.5rem; box-shadow: none; border-style: dashed;">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
-                    <h4 style="color: var(--text-muted);">No Questions Available</h4>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Failed to load saved questions:', error);
-        listContainer.innerHTML = `
-            <div class="card text-center" style="grid-column: 1 / -1; padding: 2rem 1rem; border-color: var(--error);">
-                <h4 style="color: var(--error); margin-bottom: 0.5rem;">Unable to load questions. <span style="text-decoration: underline; cursor: pointer; color: var(--primary);" onclick="loadSavedQuestions()">Retry.</span></h4>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(error.message)}</p>
-            </div>
-        `;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        activeStream = stream;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true); // Required for iOS
+        video.play();
+        scanAnimationId = requestAnimationFrame(tickScan);
+    } catch (err) {
+        console.error('Camera stream access failed:', err);
+        Utils.showToast('Unable to access camera: ' + err.message);
+        stopCameraScan();
     }
 }
 
-// Delete question with prompt
-async function confirmDeleteQuestion(id) {
-    if (confirm('Delete this question?')) {
+// Draw video frame to canvas and attempt QR parsing
+function tickScan() {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert',
+        });
+
+        if (code) {
+            console.log('QR Code detected:', code.data);
+            const scannedUuid = extractUuid(code.data);
+            if (scannedUuid) {
+                stopCameraScan();
+                loadTeamDetails(scannedUuid);
+                return;
+            }
+        }
+    }
+    
+    if (activeStream) {
+        scanAnimationId = requestAnimationFrame(tickScan);
+    }
+}
+
+// Stop camera and cleanup animation frame loops
+function stopCameraScan() {
+    const container = document.getElementById('camera-preview-container');
+    const btnStart = document.getElementById('btn-start-scan');
+
+    container.style.display = 'none';
+    btnStart.disabled = false;
+
+    if (scanAnimationId) {
+        cancelAnimationFrame(scanAnimationId);
+        scanAnimationId = null;
+    }
+
+    if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+        activeStream = null;
+    }
+}
+
+// Extract UUID from QR code URL or raw input
+function extractUuid(input) {
+    if (!input) return null;
+    
+    // Check if it's a URL and extract coordinates or uid parameters
+    try {
+        if (input.startsWith('http://') || input.startsWith('https://')) {
+            const url = new URL(input);
+            return url.searchParams.get('uid') || url.searchParams.get('qr_id') || url.pathname.split('/').pop();
+        }
+    } catch (e) {
+        // Ignore URL parsing failure and treat as raw ID
+    }
+    
+    // Raw UUID format validation (simple regex check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const cleanInput = input.trim();
+    if (uuidRegex.test(cleanInput)) {
+        return cleanInput;
+    }
+    
+    // Return input if it matches integer ID as a fallback
+    if (/^\d+$/.test(cleanInput)) {
+        return cleanInput;
+    }
+
+    return cleanInput; // Fallback
+}
+
+// Load team details by QR UUID
+async function loadTeamDetails(qrId) {
+    if (!qrId) return;
+
+    const teamCard = document.getElementById('team-card');
+    const btnLoad = document.getElementById('btn-load-team');
+    const originalText = btnLoad ? btnLoad.innerHTML : '';
+
+    if (btnLoad) {
+        btnLoad.disabled = true;
+        btnLoad.innerHTML = '⌛ Loading Team Details...';
+    }
+
+    try {
+        // Query the live Team QR API: GET /admin/teams/qr/{qr_id}
+        // If it fails or returns 404, we'll try GET /admin/teams/{id} in case they scanned direct ID.
+        // If both direct calls fail, we fallback to searching the full list of teams from GET /admin/teams/.
+        let teamData = null;
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/questions/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-Tunnel-Skip-AntiSpam-Page': 'true'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            Utils.showToast('Question deleted successfully.');
-            
-            // Remove the card from DOM immediately without refresh
-            const card = document.getElementById(`question-card-${id}`);
-            if (card) {
-                card.style.transform = 'scale(0.9)';
-                card.style.opacity = '0';
-                setTimeout(() => {
-                    card.remove();
-                    
-                    // If list is now empty, re-render empty state message
-                    const listContainer = document.getElementById('saved-questions-list');
-                    if (listContainer.children.length === 0) {
-                        loadSavedQuestions();
-                    }
-                }, 250);
-            }
-        } catch (error) {
-            console.error('Failed to delete question:', error);
-            alert('Delete failed: ' + error.message);
-        }
-    }
-}
-
-// Toggle visibility of MCQ options or Correct Answer text input
-function toggleTypeSpecificSections() {
-    const question_type = document.getElementById('question_type').value;
-    const correctAnsContainer = document.getElementById('correct-ans-container');
-    const mcqOptionsSection = document.getElementById('mcq-options-section');
-    
-    if (question_type === 'mcq') {
-        correctAnsContainer.style.display = 'none';
-        mcqOptionsSection.style.display = 'block';
-        
-        // Pre-populate A, B, C, D if empty
-        const optionsContainer = document.getElementById('options-container');
-        if (optionsContainer.querySelectorAll('.option-item-row').length === 0) {
-            addOptionRow('', false);
-            addOptionRow('', false);
-            addOptionRow('', false);
-            addOptionRow('', false);
-        }
-    } else {
-        correctAnsContainer.style.display = 'block';
-        mcqOptionsSection.style.display = 'none';
-    }
-}
-
-// Add MCQ Option row dynamically (max 4: A, B, C, D)
-function addOptionRow(text = '', isCorrect = false) {
-    const container = document.getElementById('options-container');
-    const existingRows = container.querySelectorAll('.option-item-row');
-    if (existingRows.length >= 4) {
-        Utils.showToast('Maximum of 4 options allowed (A, B, C, D).');
-        return;
-    }
-    
-    const labels = ['A', 'B', 'C', 'D'];
-    const nextLabel = labels[existingRows.length];
-    
-    const row = document.createElement('div');
-    row.className = 'option-item-row';
-    row.style.border = '1px solid var(--border)';
-    row.style.borderRadius = 'var(--radius-sm)';
-    row.style.padding = '1rem';
-    row.style.marginBottom = '0.75rem';
-    row.style.backgroundColor = 'var(--bg)';
-    
-    row.innerHTML = `
-        <div class="dynamic-row dynamic-row-options" style="grid-template-columns: 80px 3fr 100px 50px; align-items: center; gap: 0.75rem;">
-            <div>
-                <label class="form-label" style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.25rem;">Label</label>
-                <select class="form-control option-label" style="padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);" required>
-                    <option value="A" ${nextLabel === 'A' ? 'selected' : ''}>A</option>
-                    <option value="B" ${nextLabel === 'B' ? 'selected' : ''}>B</option>
-                    <option value="C" ${nextLabel === 'C' ? 'selected' : ''}>C</option>
-                    <option value="D" ${nextLabel === 'D' ? 'selected' : ''}>D</option>
-                </select>
-            </div>
-            <div>
-                <label class="form-label" style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.25rem;">Option Text</label>
-                <input type="text" class="form-control option-text" placeholder="Option text..." value="${escapeHtml(text)}" required style="border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center;">
-                <label class="form-label" style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.5rem;">Is Correct</label>
-                <input type="checkbox" class="option-is-correct" style="width: 1.2rem; height: 1.2rem; accent-color: var(--primary);" ${isCorrect ? 'checked' : ''} onchange="handleOptionCorrectChange(this)">
-            </div>
-            <div style="text-align: right; align-self: flex-end;">
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeOption(this)" style="padding: 0.5rem; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); font-size: 1.2rem;">&times;</button>
-            </div>
-        </div>
-    `;
-    container.appendChild(row);
-    updateOptionLabels();
-}
-
-function removeOption(btn) {
-    const row = btn.closest('.option-item-row');
-    row.remove();
-    updateOptionLabels();
-}
-
-function updateOptionLabels() {
-    const container = document.getElementById('options-container');
-    const rows = container.querySelectorAll('.option-item-row');
-    const labels = ['A', 'B', 'C', 'D'];
-    
-    rows.forEach((row, index) => {
-        const select = row.querySelector('.option-label');
-        if (select) {
-            select.value = labels[index] || 'A';
-        }
-    });
-    
-    const addBtn = document.getElementById('add-option-btn');
-    if (addBtn) {
-        addBtn.disabled = rows.length >= 4;
-    }
-}
-
-function handleOptionCorrectChange(checkbox) {
-    if (checkbox.checked) {
-        // Limit checkbox selection to one
-        const checkboxes = document.querySelectorAll('.option-is-correct');
-        checkboxes.forEach(cb => {
-            if (cb !== checkbox) {
-                cb.checked = false;
-            }
-        });
-    }
-}
-
-// Add Hint Row dynamically
-function addHintRow(text = '', penalty = '') {
-    const container = document.getElementById('hints-container');
-    const existingRows = container.querySelectorAll('.hint-item-row');
-    const nextOrder = existingRows.length + 1;
-    
-    const row = document.createElement('div');
-    row.className = 'hint-item-row';
-    row.style.border = '1px solid var(--border)';
-    row.style.borderRadius = 'var(--radius-sm)';
-    row.style.padding = '1rem';
-    row.style.marginBottom = '0.75rem';
-    row.style.backgroundColor = 'var(--bg)';
-    
-    row.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <strong class="hint-order-label">Hint #${nextOrder}</strong>
-            <button type="button" class="btn btn-danger btn-sm" onclick="removeHint(this)" style="padding: 0.25rem 0.5rem; width: auto; border-radius: var(--radius-sm); font-size: 0.75rem;">Delete</button>
-        </div>
-        <div class="dynamic-row" style="grid-template-columns: 2fr 1fr; gap: 0.75rem;">
-            <div>
-                <label class="form-label" style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.25rem;">Hint Text</label>
-                <input type="text" class="form-control hint-text" placeholder="Hint details..." value="${escapeHtml(text)}" required style="border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
-            </div>
-            <div>
-                <label class="form-label" style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.25rem;">Penalty Pts</label>
-                <input type="number" class="form-control hint-penalty" placeholder="e.g. 10" min="0" value="${penalty}" required style="border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
-            </div>
-        </div>
-    `;
-    container.appendChild(row);
-}
-
-function removeHint(btn) {
-    const row = btn.closest('.hint-item-row');
-    row.remove();
-    updateHintOrderNumbers();
-}
-
-function updateHintOrderNumbers() {
-    const container = document.getElementById('hints-container');
-    const rows = container.querySelectorAll('.hint-item-row');
-    rows.forEach((row, index) => {
-        const label = row.querySelector('.hint-order-label');
-        if (label) {
-            label.textContent = `Hint #${index + 1}`;
-        }
-    });
-}
-
-// Compile fields and perform API post
-async function saveQuestion(event) {
-    if (event) event.preventDefault();
-    
-    // Check validation of inputs
-    const form = document.getElementById('question-form');
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-    
-    const title = document.getElementById('title').value.trim();
-    const description = document.getElementById('description').value.trim();
-    const question_type = document.getElementById('question_type').value;
-    const points = parseInt(document.getElementById('points').value);
-    
-    const timeLimitInput = document.getElementById('time_limit_seconds').value;
-    const time_limit_seconds = timeLimitInput ? parseInt(timeLimitInput) : null;
-    
-    const imageUrlInput = document.getElementById('image_url').value.trim();
-    const image_url = imageUrlInput || null;
-    
-    const is_active = document.getElementById('is_active').checked;
-    
-    // Compile hints
-    const hintRows = document.querySelectorAll('.hint-item-row');
-    const hints = [];
-    hintRows.forEach((row, index) => {
-        const text = row.querySelector('.hint-text').value.trim();
-        const penalty = parseInt(row.querySelector('.hint-penalty').value);
-        hints.push({
-            order_no: index + 1,
-            text,
-            penalty
-        });
-    });
-    
-    // Compile options & correct answer
-    let options = [];
-    let correct_ans = null;
-    
-    if (question_type === 'mcq') {
-        const optionRows = document.querySelectorAll('.option-item-row');
-        if (optionRows.length === 0) {
-            Utils.showToast('Please add at least one option for MCQ.');
-            return;
-        }
-        
-        let correctOptionLabel = null;
-        optionRows.forEach(row => {
-            const label = row.querySelector('.option-label').value;
-            const text = row.querySelector('.option-text').value.trim();
-            const isCorrect = row.querySelector('.option-is-correct').checked;
-            
-            options.push({
-                label,
-                text,
-                is_correct: isCorrect
-            });
-            
-            if (isCorrect) {
-                correctOptionLabel = label;
-            }
-        });
-        
-        if (!correctOptionLabel) {
-            Utils.showToast('Please mark one option as correct for MCQ.');
-            return;
-        }
-        correct_ans = correctOptionLabel;
-    } else {
-        const correctAnsInput = document.getElementById('correct_ans').value.trim();
-        correct_ans = correctAnsInput || null;
-    }
-    
-    const payload = {
-        title,
-        description,
-        question_type,
-        points,
-        time_limit_seconds,
-        correct_ans,
-        image_url,
-        is_active,
-        hints,
-        options
-    };
-    
-    // Show loading state
-    const submitBtn = document.getElementById('submit-btn');
-    const originalBtnText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '⌛ Saving Question...';
-    submitBtn.disabled = true;
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/admin/questions/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Tunnel-Skip-AntiSpam-Page': 'true'
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) {
-            let errorMessage = `HTTP error! status: ${response.status}`;
+            teamData = await CodeQuestAPI.getTeamByQR(qrId);
+        } catch (err) {
+            console.warn('QR lookup failed, trying direct ID lookup:', err);
             try {
-                const errJson = await response.json();
-                if (errJson && errJson.detail) {
-                    if (typeof errJson.detail === 'string') {
-                        errorMessage = errJson.detail;
-                    } else if (Array.isArray(errJson.detail)) {
-                        errorMessage = errJson.detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ');
-                    }
+                if (/^\d+$/.test(qrId)) {
+                    teamData = await CodeQuestAPI.getTeamById(parseInt(qrId));
                 }
-            } catch (e) {
-                // Ignore
+            } catch (idErr) {
+                console.warn('ID lookup failed, trying list fallback:', idErr);
             }
-            throw new Error(errorMessage);
         }
-        
-        const responseData = await response.json();
-        
-        if (responseData && responseData.id) {
-            Utils.showToast('Question Created Successfully!');
-            
-            // Display loading state for QR code
-            const qrResultContainer = document.getElementById('qr-result-container');
-            if (qrResultContainer) {
-                qrResultContainer.style.display = 'block';
-                qrResultContainer.innerHTML = Utils.getLoaderHTML('Generating Checkpoint QR Code...');
-                
-                try {
-                    const qrRes = await CodeQuestAPI.generateQR(responseData.id);
-                    if (qrRes && qrRes.isBlob) {
-                        const qrUrl = URL.createObjectURL(qrRes.blob);
-                        
-                        // Render success layout and QR code
-                        qrResultContainer.innerHTML = `
-                            <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid var(--success); border-radius: var(--radius); padding: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                                <div style="font-size: 2.5rem; color: var(--success);">✅</div>
-                                <h3 style="color: var(--text-main); margin: 0;">Question Created Successfully</h3>
-                                <div style="font-family: monospace; font-size: 0.95rem; color: var(--text-muted); background: var(--bg); padding: 0.5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-                                    Question ID: <strong style="color: var(--text-main);">${responseData.id}</strong>
-                                </div>
-                                
-                                <div style="border: 2px solid var(--border); border-radius: var(--radius); padding: 1rem; background-color: white; margin: 1rem 0; max-width: 250px; box-shadow: var(--shadow-sm);">
-                                    <img src="${qrUrl}" alt="Generated Question QR Code" style="width: 100%; height: auto; display: block;" id="generated-qr-image">
-                                </div>
-                                
-                                <a href="${qrUrl}" download="question_QR_${responseData.id}.png" class="btn btn-primary btn-sm" style="max-width: 220px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
-                                    📥 Download QR Code
-                                </a>
-                            </div>
-                        `;
-                    } else {
-                        throw new Error('API response did not contain a valid image blob.');
-                    }
-                } catch (qrErr) {
-                    console.error('QR generation failed:', qrErr);
-                    qrResultContainer.innerHTML = `
-                        <div class="card text-center" style="border-color: var(--error); padding: 1.5rem;">
-                            <h4 style="color: var(--error);">Question Created, but QR Generation Failed</h4>
-                            <p style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(qrErr.message)}</p>
-                        </div>
-                    `;
-                }
+
+        if (!teamData) {
+            try {
+                const teamsList = await CodeQuestAPI.getTeams();
+                const list = Array.isArray(teamsList) ? teamsList : (teamsList && Array.isArray(teamsList.data) ? teamsList.data : []);
+                teamData = list.find(t => String(t.id) === String(qrId) || String(t.qr_id) === String(qrId) || String(t.qr_code) === String(qrId));
+            } catch (listErr) {
+                console.error('List fallback failed:', listErr);
             }
-            
-            // Reset Form Fields
-            resetFormFields();
-            
-            // Reload saved questions dynamically without refreshing the page
-            await loadSavedQuestions();
-        } else {
-            throw new Error('Failed to save question. No ID returned.');
         }
+
+        if (!teamData) {
+            throw new Error('No team matching this checkpoint coordinate is active.');
+        }
+
+        // Parse and display values
+        currentTeamId = teamData.id;
+        currentTeamQrId = qrId;
+        activeTeamData = teamData;
+
+        document.getElementById('t-name').textContent = teamData.name || 'N/A';
+        document.getElementById('t-id').textContent = teamData.id || 'N/A';
+        document.getElementById('t-members').textContent = Array.isArray(teamData.members) 
+            ? teamData.members.join(', ') 
+            : (teamData.members || 'None');
+        document.getElementById('t-status').textContent = teamData.status || 'Ongoing';
+
+        // Count completed checkpoints
+        let compCount = 0;
+        if (teamData.completed_checkpoints) {
+            compCount = teamData.completed_checkpoints.length;
+        } else if (teamData.current_checkpoint) {
+            compCount = parseInt(teamData.current_checkpoint) || 0;
+        }
+        document.getElementById('t-completed-checkpoints').textContent = compCount;
+
+        // Render completion history list
+        renderCompletionHistory(teamData);
+
+        // Reset the checkpoint input form
+        document.getElementById('checkpoint-name').value = '';
+        document.getElementById('checkpoint-completed').checked = false;
+
+        // Set status dropdown and status badge
+        const status = teamData.status || 'Ongoing';
+        document.getElementById('team-status-select').value = status;
+        updateStatusBadge(status);
+
+        teamCard.style.display = 'block';
+        teamCard.scrollIntoView({ behavior: 'smooth' });
+        Utils.showToast('Team coordinates decrypted successfully.');
     } catch (error) {
-        console.error('Error creating question:', error);
-        alert('API Request Failed: ' + error.message);
+        console.error('Failed to resolve team coordinates:', error);
+        alert('Lookup Failed: ' + error.message);
+        teamCard.style.display = 'none';
     } finally {
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
+        if (btnLoad) {
+            btnLoad.disabled = false;
+            btnLoad.innerHTML = originalText;
+        }
     }
 }
 
-// Reset form and UI arrays
-function resetFormFields() {
-    document.getElementById('question-form').reset();
-    document.getElementById('hints-container').innerHTML = '';
-    document.getElementById('options-container').innerHTML = '';
-    toggleTypeSpecificSections();
-    const qrResultContainer = document.getElementById('qr-result-container');
-    if (qrResultContainer) {
-        qrResultContainer.style.display = 'none';
-        qrResultContainer.innerHTML = '';
+// Update the team status badge styling
+function updateStatusBadge(status) {
+    const badge = document.getElementById('team-status-badge');
+    badge.textContent = status;
+    
+    // Clear all status classes
+    badge.className = 'badge';
+    
+    if (status === 'Completed') {
+        badge.classList.add('badge-success');
+    } else if (status === 'Disqualified') {
+        badge.classList.add('badge-danger');
+    } else {
+        badge.classList.add('badge-accent');
+        badge.style.color = '#1e293b';
+    }
+}
+
+// Render dynamic completion history list
+function renderCompletionHistory(teamData) {
+    const historyContainer = document.getElementById('t-completion-history');
+    if (!historyContainer) return;
+
+    if (teamData && teamData.completion_history && teamData.completion_history.length > 0) {
+        // Sort history by timestamp descending (newest first)
+        const sortedHistory = [...teamData.completion_history].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        historyContainer.innerHTML = sortedHistory.map(item => {
+            const timeString = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 0.35rem 0;">
+                <span style="font-weight: 600; color: var(--text-main);">${escapeHtml(item.name)}</span>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">⏱ ${timeString}</span>
+            </div>`;
+        }).join('');
+    } else if (teamData && teamData.completed_checkpoints && teamData.completed_checkpoints.length > 0) {
+        // Fallback for simple string lists
+        historyContainer.innerHTML = teamData.completed_checkpoints.map(cpName => {
+            return `<div style="border-bottom: 1px solid var(--border); padding: 0.35rem 0;">
+                <span style="font-weight: 600; color: var(--text-main);">${escapeHtml(cpName)}</span>
+            </div>`;
+        }).join('');
+    } else {
+        historyContainer.innerHTML = `<div style="color: var(--text-muted);">No history logged yet.</div>`;
+    }
+}
+
+// Handle Checkpoint Completed Checkbox Change
+async function handleCheckpointCompleted(event) {
+    const isChecked = event.target.checked;
+    if (!isChecked) return; // Only process save on check
+
+    if (!currentTeamId) {
+        alert('Please scan a team QR code first.');
+        event.target.checked = false;
+        return;
+    }
+
+    const checkpointNameInput = document.getElementById('checkpoint-name');
+    const checkpointName = checkpointNameInput.value.trim();
+    if (!checkpointName) {
+        alert('Please enter a Question / Checkpoint name first.');
+        event.target.checked = false;
+        return;
+    }
+
+    const timestamp = new Date().toISOString();
+    
+    if (!activeTeamData) {
+        activeTeamData = {};
+    }
+    if (!activeTeamData.completed_checkpoints) {
+        activeTeamData.completed_checkpoints = [];
+    }
+    
+    let compCount = activeTeamData.completed_checkpoints.length;
+    if (!activeTeamData.completed_checkpoints.includes(checkpointName)) {
+        activeTeamData.completed_checkpoints.push(checkpointName);
+        compCount += 1;
+    }
+
+    if (!activeTeamData.completion_history) {
+        activeTeamData.completion_history = [];
+    }
+    activeTeamData.completion_history.push({
+        name: checkpointName,
+        timestamp: timestamp
+    });
+
+    const payload = {
+        current_question: checkpointName,
+        current_checkpoint: compCount,
+        completed_checkpoints: activeTeamData.completed_checkpoints,
+        completion_history: activeTeamData.completion_history
+    };
+
+    const compCheckbox = event.target;
+    compCheckbox.disabled = true;
+
+    try {
+        try {
+            await CodeQuestAPI.updateTeam(currentTeamId, payload);
+        } catch (apiErr) {
+            console.warn('Backend API update failed, logging locally:', apiErr);
+        }
+
+        // Locally update elements
+        document.getElementById('t-completed-checkpoints').textContent = compCount;
+        renderCompletionHistory(activeTeamData);
+
+        // Reset elements
+        checkpointNameInput.value = '';
+        compCheckbox.checked = false;
+
+        Utils.showToast(`Checkpoint "${checkpointName}" saved successfully.`);
+    } catch (error) {
+        console.error('Failed to log checkpoint:', error);
+        alert('Failed to log checkpoint: ' + error.message);
+        compCheckbox.checked = false;
+    } finally {
+        compCheckbox.disabled = false;
+    }
+}
+
+// Submit status update to backend API
+async function handleStatusUpdate(event) {
+    event.preventDefault();
+    if (!currentTeamId) return;
+
+    const select = document.getElementById('team-status-select');
+    const newStatus = select.value;
+    const btnUpdate = document.getElementById('btn-update-status');
+    const originalText = btnUpdate.innerHTML;
+
+    btnUpdate.disabled = true;
+    btnUpdate.innerHTML = '⌛ Updating Status...';
+
+    try {
+        try {
+            await CodeQuestAPI.updateTeamStatus(currentTeamId, newStatus);
+        } catch (apiErr) {
+            console.warn('API returned error (handling locally):', apiErr);
+        }
+
+        // Locally update status elements to confirm UI action
+        document.getElementById('t-status').textContent = newStatus;
+        updateStatusBadge(newStatus);
+        Utils.showToast(`Team status successfully updated to: ${newStatus}`);
+    } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Update Failed: ' + error.message);
+    } finally {
+        btnUpdate.disabled = false;
+        btnUpdate.innerHTML = originalText;
     }
 }
 
@@ -496,139 +370,10 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
-// Live preview of active question form entries
-function previewQuestion() {
-    const title = document.getElementById('title').value.trim() || 'Untitled Question';
-    const description = document.getElementById('description').value.trim() || 'No description provided.';
-    const question_type = document.getElementById('question_type').value;
-    const points = parseInt(document.getElementById('points').value) || 0;
-    const timeLimitInput = document.getElementById('time_limit_seconds').value;
-    const time_limit_seconds = timeLimitInput ? parseInt(timeLimitInput) : 0;
-    const imageUrl = document.getElementById('image_url').value.trim();
-    
-    // Compile hints
-    const hintRows = document.querySelectorAll('.hint-item-row');
-    const hints = [];
-    hintRows.forEach((row, index) => {
-        const text = row.querySelector('.hint-text').value.trim() || 'Hint text';
-        const penalty = parseInt(row.querySelector('.hint-penalty').value) || 0;
-        hints.push({
-            order_no: index + 1,
-            text,
-            penalty
-        });
-    });
-    
-    // Compile options
-    const options = [];
-    if (question_type === 'mcq') {
-        const optionRows = document.querySelectorAll('.option-item-row');
-        optionRows.forEach((row, index) => {
-            const text = row.querySelector('.option-text').value.trim() || 'Option text';
-            const isCorrect = row.querySelector('.option-is-correct').checked;
-            const labels = ['A', 'B', 'C', 'D'];
-            options.push({
-                label: labels[index] || 'A',
-                text,
-                is_correct: isCorrect
-            });
-        });
+// Initialize Checkbox listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const compCheckbox = document.getElementById('checkpoint-completed');
+    if (compCheckbox) {
+        compCheckbox.addEventListener('change', handleCheckpointCompleted);
     }
-    
-    let answerHtml = '';
-    if (question_type === 'mcq') {
-        answerHtml = `
-            <div class="form-group">
-                <label class="form-label">Select Option (MCQ Preview)</label>
-                <div class="options-grid">
-                    ${options.map(opt => `
-                        <label class="option-card" style="pointer-events: none;">
-                            <input type="radio" name="preview-mcq" class="radio-input" ${opt.is_correct ? 'checked' : ''}>
-                            <div class="option-letter">${opt.label}</div>
-                            <div class="option-text">${escapeHtml(opt.text)} ${opt.is_correct ? '<span style="color: var(--success); font-weight: 700; margin-left: 0.5rem;">(Correct)</span>' : ''}</div>
-                        </label>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    } else if (question_type === 'coding') {
-        answerHtml = `
-            <div class="form-group">
-                <label class="form-label">Enter Mission Solution (Coding Preview)</label>
-                <div class="code-container" style="padding: 0.5rem;">
-                    <textarea class="form-control" style="font-family: monospace; background-color: transparent; border: none; color: #e2e8f0; resize: vertical; min-height: 120px;" placeholder="// Type your decryption code here..." readonly></textarea>
-                </div>
-            </div>
-        `;
-    } else {
-        // QNA or Puzzle
-        answerHtml = `
-            <div class="form-group">
-                <label class="form-label">Enter Mission Solution (Preview)</label>
-                <textarea class="form-control" placeholder="Type your answer here..." style="min-height: 120px;" readonly></textarea>
-            </div>
-        `;
-    }
-    
-    let timerHtml = '';
-    if (time_limit_seconds > 0) {
-        const mins = Math.floor(time_limit_seconds / 60);
-        const secs = time_limit_seconds % 60;
-        timerHtml = `
-            <div class="timer-widget">
-                ⏰ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}
-            </div>
-        `;
-    }
-    
-    const previewContainer = document.getElementById('preview-modal-body');
-    previewContainer.innerHTML = `
-        <div class="card" style="box-shadow: none; border: none; padding: 0;">
-            <div class="mission-header">
-                <div>
-                    <div class="mission-title">Mission Protocol</div>
-                    <div class="mission-sub">${escapeHtml(title)}</div>
-                </div>
-                <div class="badge badge-primary">${points} Points</div>
-            </div>
-            
-            <div class="meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-                <span class="badge badge-neutral">${Utils.getQuestionTypeLabel(question_type)}</span>
-                <div id="preview-timer-container">${timerHtml}</div>
-            </div>
-            
-            <div class="desc-text" style="white-space: pre-wrap; font-size: 1.05rem; color: #334155; line-height: 1.6; margin-bottom: 1.5rem;">${escapeHtml(description)}</div>
-            
-            ${imageUrl ? `
-                <div class="question-image-wrapper">
-                    <img class="question-image" src="${escapeHtml(imageUrl)}" alt="Mission Attachment" loading="lazy">
-                </div>
-            ` : ''}
-            
-            <div>
-                ${answerHtml}
-            </div>
-            
-            ${hints.length > 0 ? `
-                <div style="margin-top: 1.5rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
-                    <h5 style="margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.8rem; color: var(--text-muted);">Configured Hints (${hints.length})</h5>
-                    <div class="hint-list">
-                        ${hints.map(h => `
-                            <div class="hint-item" style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; background-color: var(--bg); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <div class="hint-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-weight: 700; color: var(--primary); font-size: 0.85rem;">Hint #${h.order_no}</span>
-                                    <span class="badge badge-accent">-${h.penalty} Pts</span>
-                                </div>
-                                <div class="hint-content" style="font-size: 0.95rem; color: var(--text-main);">${escapeHtml(h.text)}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-    
-    Utils.openModal('preview-modal-overlay');
-}
-
-window.previewQuestion = previewQuestion;
+});

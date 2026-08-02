@@ -138,7 +138,7 @@ function renderQuestion(q) {
             <!-- Image Attachment -->
             ${q.image_url ? `
                 <div class="question-image-wrapper">
-                    <img class="question-image" src="${escapeHtml(q.image_url)}" alt="Mission Intel Attachment" loading="lazy">
+                    <img class="question-image" src="${escapeHtml(Utils.formatImageUrl(q.image_url))}" alt="Mission Intel Attachment" loading="lazy">
                 </div>
             ` : ''}
             

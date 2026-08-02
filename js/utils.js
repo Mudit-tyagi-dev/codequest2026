@@ -1,4 +1,18 @@
 const Utils = {
+    // Format image URLs from relative to absolute
+    formatImageUrl(path) {
+        if (!path) return '';
+        // If it's already an absolute URL (starts with http:// or https://) or a data URI/blob URL, return it as is
+        if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+            return path;
+        }
+        const base = window.CodeQuestAPI ? window.CodeQuestAPI.BASE_URL : 'http://43.205.198.229:8000';
+        if (path.startsWith('/')) {
+            return base + path;
+        }
+        return base + '/' + path;
+    },
+
     // URL Params
     getQueryParam(name) {
         const urlParams = new URLSearchParams(window.location.search);

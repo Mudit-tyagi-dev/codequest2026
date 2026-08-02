@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CODE QUEST 2026 | Question Manager</title>
+    <title>CODE QUEST 2026 | Volunteer Panel</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/components.css">
     <style>
-        .manager-container {
-            max-width: 800px;
+        .panel-container {
+            max-width: 720px;
             width: 100%;
             margin: 1.5rem auto;
         }
 
-        .manager-header {
+        .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -34,201 +34,184 @@
             color: var(--accent);
         }
 
-        /* Form grouping layout */
-        .form-row {
+        .team-detail-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.25rem;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         @media (max-width: 576px) {
-            .form-row {
+            .team-detail-grid {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Section Headings inside builder */
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--primary);
+        .detail-item {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+        }
+
+        .detail-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            border-bottom: 1px dashed var(--border);
-            padding-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
         }
 
-        /* Saved Question Feed Layout */
-        .saved-questions-section {
-            margin-top: 3rem;
+        .detail-value {
+            font-weight: 600;
+            color: var(--text-main);
+            word-break: break-all;
         }
 
-        .questions-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.5rem;
-            margin-top: 1.5rem;
+        /* QR Scanner Camera Overlay */
+        #camera-preview-container {
+            display: none;
+            position: relative;
+            width: 100%;
+            max-height: 300px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 2px solid var(--primary);
+            margin-bottom: 1.5rem;
+            background-color: #000;
         }
 
-        @media (max-width: 768px) {
-            .questions-grid {
-                grid-template-columns: 1fr;
-            }
+        #camera-video {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            display: block;
+            object-fit: cover;
         }
 
-        /* Individual Question Card details */
-        .question-card {
-            border-left: 4px solid var(--primary);
-            transition: var(--transition);
+        .scanner-overlay-laser {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--error);
+            box-shadow: 0 0 8px var(--error);
+            animation: laser-sweep 2s infinite ease-in-out;
         }
 
-        .question-card.inactive {
-            border-left-color: var(--text-muted);
-            opacity: 0.85;
-        }
-
-        .question-card:hover {
-            transform: translateY(-2px);
+        @keyframes laser-sweep {
+            0%, 100% { top: 10%; }
+            50% { top: 90%; }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <div class="manager-container">
+        <div class="panel-container">
             
             <!-- Header panel -->
-            <div class="manager-header">
+            <div class="panel-header">
                 <div>
-                    <h1 class="portal-title">CODE<span>QUEST</span> • Question Manager</h1>
-                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Configure questions and locate public challenge paths</p>
+                    <h1 class="portal-title">CODE<span>QUEST</span> • Volunteer Portal</h1>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Monitor and update active team coordinates</p>
                 </div>
                 <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Back to Hub</a>
             </div>
 
-            <!-- Create Question Form Card -->
-            <div class="card" id="form-card" style="border-top: 4px solid var(--primary);">
-                <form id="question-form" onsubmit="saveQuestion(event)">
-                    
-                    <h3 style="margin-bottom: 0.5rem; color: var(--primary);">Create Question</h3>
-                    <p style="margin-bottom: 2rem; font-size: 0.9rem; color: var(--text-muted);">Fill out the schema fields to add a new mission challenge.</p>
+            <!-- QR scan / entry card -->
+            <div class="card" style="border-top: 4px solid var(--primary); margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 0.5rem; color: var(--primary);">Scan Team QR</h3>
+                <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                    Scan the team coordinates QR code using your camera to view details and log checkpoint progress.
+                </p>
 
-                    <!-- Title -->
-                    <div class="form-group">
-                        <label for="title" class="form-label">Title</label>
-                        <input type="text" id="title" class="form-control" placeholder="e.g. Decrypt the Array" required autocomplete="off">
-                    </div>
+                <!-- Camera stream for active scanning -->
+                <div id="camera-preview-container">
+                    <video id="camera-video" playsinline></video>
+                    <div class="scanner-overlay-laser"></div>
+                    <button class="btn btn-danger btn-sm" onclick="stopCameraScan()" style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">
+                        Stop Scanner
+                    </button>
+                </div>
 
-                    <!-- Description -->
-                    <div class="form-group">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea id="description" class="form-control" placeholder="Write question instructions, puzzle text or decryption logic..." required></textarea>
-                    </div>
-
-                    <!-- Row 1: Type & Points -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="question_type" class="form-label">Question Type</label>
-                            <select id="question_type" class="form-control" onchange="toggleTypeSpecificSections()" required>
-                                <option value="coding" selected>coding</option>
-                                <option value="mcq">mcq</option>
-                                <option value="qna">qna</option>
-                                <option value="puzzle">puzzle</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="points" class="form-label">Points</label>
-                            <input type="number" id="points" class="form-control" min="0" placeholder="e.g. 100" required autocomplete="off">
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Time Limit & Image URL -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="time_limit_seconds" class="form-label">Time Limit (seconds)</label>
-                            <input type="number" id="time_limit_seconds" class="form-control" min="0" placeholder="e.g. 600 (optional)" autocomplete="off">
-                        </div>
-                        <div class="form-group">
-                            <label for="image_url" class="form-label">Image URL (optional)</label>
-                            <input type="url" id="image_url" class="form-control" placeholder="https://example.com/puzzle.png (optional)" autocomplete="off">
-                        </div>
-                    </div>
-
-                    <!-- Correct Answer (Shown for non-MCQ only) -->
-                    <div class="form-group" id="correct-ans-container">
-                        <label for="correct_ans" class="form-label">Correct Answer</label>
-                        <input type="text" id="correct_ans" class="form-control" placeholder="Solution key value..." autocomplete="off">
-                    </div>
-
-                    <!-- MCQ Options Section (Shown for MCQ only) -->
-                    <div id="mcq-options-section" style="display: none;">
-                        <div class="section-title">
-                            <span>Options</span>
-                            <button type="button" class="btn btn-secondary btn-sm" id="add-option-btn" onclick="addOptionRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
-                                + Add Option
-                            </button>
-                        </div>
-                        
-                        <div id="options-container">
-                            <!-- Dynamic MCQ option rows will render here -->
-                        </div>
-                    </div>
-
-                    <!-- Dynamic Hints Section -->
-                    <div>
-                        <div class="section-title">
-                            <span>Hints</span>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="addHintRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
-                                + Add Hint
-                            </button>
-                        </div>
-                        
-                        <div id="hints-container">
-                            <!-- Dynamic hint rows will render here -->
-                        </div>
-                    </div>
-
-                    <!-- Active Toggle Switch -->
-                    <div class="form-group" style="margin-top: 2rem; margin-bottom: 2rem;">
-                        <label class="switch-group">
-                            <div class="switch">
-                                <input type="checkbox" id="is_active" checked>
-                                <span class="slider"></span>
-                            </div>
-                            <span class="form-label" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 0.95rem;">
-                                Active Status (available to players)
-                            </span>
-                        </label>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="grid grid-cols-3 mt-4" style="gap: 1rem;">
-                        <button type="button" class="btn btn-secondary" onclick="previewQuestion()">
-                            Preview
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="resetFormFields()" style="border-color: var(--text-muted); color: var(--text-muted);">
-                            Reset Form
-                        </button>
-                        <button type="submit" class="btn btn-primary" id="submit-btn">
-                            Save Question
-                        </button>
-                    </div>
-
-                </form>
-                
-                <!-- QR Generation Result -->
-                <div id="qr-result-container" style="display: none; border-top: 2px dashed var(--border); margin-top: 2rem; padding-top: 2rem;"></div>
+                <div style="text-align: center;">
+                    <!-- Scan Button -->
+                    <button type="button" class="btn btn-primary" onclick="startCameraScan()" id="btn-start-scan" style="width: 100%; max-width: 320px; margin: 0 auto;">
+                        📷 Scan Team QR
+                    </button>
+                </div>
             </div>
 
-            <!-- Saved Questions feed -->
-            <div class="saved-questions-section">
-                <h3 style="border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; color: var(--primary);">Saved Questions</h3>
-                <div id="saved-questions-list" class="questions-grid">
-                    <!-- Dynamic saved question cards will load here -->
+            <!-- Team details card (initially hidden) -->
+            <div class="card" id="team-card" style="display: none; border-top: 4px solid var(--accent); padding-bottom: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
+                    <span>Team Details</span>
+                    <span id="team-status-badge" class="badge">Ongoing</span>
+                </h3>
+
+                <div class="team-detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Team Name</div>
+                        <div class="detail-value" id="t-name">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Team ID</div>
+                        <div class="detail-value" id="t-id">-</div>
+                    </div>
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <div class="detail-label">Members</div>
+                        <div class="detail-value" id="t-members">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Current Status</div>
+                        <div class="detail-value" id="t-status">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Completed Checkpoints</div>
+                        <div class="detail-value" id="t-completed-checkpoints">0</div>
+                    </div>
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <div class="detail-label">Completion History</div>
+                        <div class="detail-value" id="t-completion-history" style="max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; padding: 0.25rem 0;">
+                            <div style="color: var(--text-muted);">No history logged yet.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Record Checkpoint Completion -->
+                <div style="border-top: 1px dashed var(--border); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Record Progress</h4>
+                    
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label for="checkpoint-name" class="form-label">Question / Checkpoint</label>
+                        <input type="text" id="checkpoint-name" class="form-control" placeholder="e.g. Reverse Coding - Q1" required>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label class="switch-group" style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="checkpoint-completed" style="width: 1.3rem; height: 1.3rem; cursor: pointer; accent-color: var(--success);">
+                            <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">☑ Checkpoint Completed</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Update Status Form -->
+                <div style="border-top: 1px dashed var(--border); padding-top: 1.5rem;">
+                    <form onsubmit="handleStatusUpdate(event)">
+                        <div class="form-group">
+                            <label for="team-status-select" class="form-label">Team Status</label>
+                            <select id="team-status-select" class="form-control" required style="max-width: 250px;">
+                                <option value="Ongoing">Ongoing</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Disqualified">Disqualified</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-update-status" style="margin-top: 1rem; width: auto; padding: 0.5rem 1.5rem; font-size: 0.85rem;">
+                            Save Status
+                        </button>
+                    </form>
                 </div>
             </div>
 
@@ -242,23 +225,11 @@
         </div>
     </div>
 
-    <!-- Live Preview Modal Overlay -->
-    <div class="modal-overlay" id="preview-modal-overlay">
-        <div class="modal-container" style="max-width: 680px;">
-            <div class="modal-header">
-                <h3 class="modal-title">Live Question Preview</h3>
-                <button class="modal-close" onclick="Utils.closeModal('preview-modal-overlay')">&times;</button>
-            </div>
-            <div class="modal-body" id="preview-modal-body">
-                <!-- Preview elements rendered dynamically via js -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('preview-modal-overlay')">Close Preview</button>
-            </div>
-        </div>
-    </div>
+    <!-- Hidden canvas for reading QR code images -->
+    <canvas id="qr-canvas" style="display: none;"></canvas>
 
     <!-- Core Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/volunteer.js"></script>

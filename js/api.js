@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://j7jvczrc-8000.inc1.devtunnels.ms';
+const BASE_URL = "http://43.205.198.229:8000";
 
 const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -43,15 +43,26 @@ async function handleResponse(response) {
 }
 
 async function request(path, options = {}) {
-    const url = `${API_BASE_URL}${path}`;
+    const url = `${BASE_URL}${path}`;
     const headers = { ...defaultHeaders, ...options.headers };
+    
+    if (options.body instanceof FormData) {
+        delete headers['Content-Type'];
+    }
+    
     const requestOptions = {
         ...options,
         headers
     };
     
     try {
+        console.log("Request URL:", url);
         const response = await fetch(url, requestOptions);
+        try {
+            console.log(await response.clone().json());
+        } catch (cloneErr) {
+            // Ignore cloning errors for non-json, images, etc.
+        }
         return await handleResponse(response);
     } catch (error) {
         console.error(`API Request to ${url} failed:`, error);
@@ -60,6 +71,7 @@ async function request(path, options = {}) {
 }
 
 const CodeQuestAPI = {
+    BASE_URL,
     // Admin Questions
     async getQuestions() {
         try {
@@ -110,6 +122,38 @@ const CodeQuestAPI = {
     // Admin Teams
     async getTeams() {
         return await request('/admin/teams/');
+    },
+    
+    async getTeamById(id) {
+        return await request(`/admin/teams/${id}`);
+    },
+    
+    async getTeamByQR(qrId) {
+        return await request(`/admin/teams/qr/${qrId}`);
+    },
+    
+    async updateTeamStatus(id, status) {
+        return await request(`/admin/teams/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status })
+        });
+    },
+
+    async updateTeam(id, teamData) {
+        return await request(`/admin/teams/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(teamData)
+        });
+    },
+
+    // Upload Question Image
+    async uploadQuestionImage(id, imageBlob) {
+        const formData = new FormData();
+        formData.append('image', imageBlob, 'upload.jpg');
+        return await request(`/admin/questions/${id}/image`, {
+            method: 'POST',
+            body: formData
+        });
     }
 };
 
