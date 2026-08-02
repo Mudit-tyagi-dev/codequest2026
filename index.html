@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST 2026 | Mission Hub</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .landing-wrap {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-box {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.05em;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        
+        .logo-box span {
+            color: var(--accent);
+        }
+
+        .event-sub {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 1.5rem;
+        }
+
+        .desc-p {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            max-width: 480px;
+            margin: 0 auto 2.5rem auto;
+            line-height: 1.6;
+        }
+
+        .landing-card {
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 4px solid var(--primary);
+        }
+
+        .expand-input-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+        }
+
+        .expand-input-container.active {
+            max-height: 150px;
+            opacity: 1;
+            margin-top: 1.5rem;
+        }
+
+        .coordinator-link {
+            display: inline-block;
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: var(--transition);
+        }
+
+        .coordinator-link:hover {
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="landing-wrap">
+            <div class="card landing-card">
+                <div class="logo-box">CODE<span>QUEST</span></div>
+                <div class="event-sub">Treasure Hunt 2026</div>
+                
+                <p class="desc-p">
+                    Welcome, participant. Code Quest is a QR-based reverse coding treasure hunt. Locate your physical checkpoint coordinate, scan the QR code, and submit your decryption logic to advance.
+                </p>
+
+                <div id="cta-section">
+                    <button class="btn btn-primary" onclick="showUidInput()" id="btn-continue">
+                        Continue to Mission
+                    </button>
+                </div>
+
+                <!-- Dynamic manual entry in case scanning fails -->
+                <div class="expand-input-container" id="input-container">
+                    <form onsubmit="event.preventDefault(); startMission();">
+                        <div class="form-group">
+                            <label for="uid-input" class="form-label" style="font-size: 0.75rem;">Enter Mission UID / Checkpoint Code</label>
+                            <input type="text" id="uid-input" class="form-control text-center" placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000" autocomplete="off" required>
+                        </div>
+                        <button type="submit" class="btn btn-accent btn-sm" style="width: auto; padding-left: 2rem; padding-right: 2rem;">
+                            Decrypt Coordinates
+                        </button>
+                    </form>
+                </div>
+
+                <a href="volunteer.html" class="coordinator-link">Volunteer Portal</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showUidInput() {
+            document.getElementById('input-container').classList.add('active');
+            document.getElementById('btn-continue').style.display = 'none';
+            document.getElementById('uid-input').focus();
+        }
+
+        function startMission() {
+            const input = document.getElementById('uid-input');
+            const rawUid = input.value.trim();
+            
+            if (!rawUid) return;
+
+            let uid = rawUid;
+            try {
+                if (rawUid.startsWith('http://') || rawUid.startsWith('https://')) {
+                    const url = new URL(rawUid);
+                    const paramUid = url.searchParams.get('uid') || url.searchParams.get('qr_id');
+                    if (paramUid) {
+                        uid = paramUid;
+                    }
+                }
+            } catch (e) {
+                // Ignore parsing URL errors
+            }
+            
+            window.location.href = `question.html?uid=${encodeURIComponent(uid)}`;
+        }
+    </script>
+</body>
+</html>

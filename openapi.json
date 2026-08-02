@@ -1,0 +1,627 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Code Quest API",
+        "version": "v1.0.0"
+    },
+    "paths": {
+        "/admin/questions/": {
+            "get": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Get Questions",
+                "operationId": "get_questions_admin_questions__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Create Question",
+                "operationId": "create_question_admin_questions__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QuestionCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/questions/{id}": {
+            "get": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Get Question By Id",
+                "operationId": "get_question_by_id_admin_questions__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Update Question",
+                "operationId": "update_question_admin_questions__id__patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QuestionUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Delete Question",
+                "operationId": "delete_question_admin_questions__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/questions/qr/{id}": {
+            "post": {
+                "tags": [
+                    "Admin Questtions"
+                ],
+                "summary": "Generate Qr",
+                "operationId": "generate_qr_admin_questions_qr__id__post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Question QR Code",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            },
+                            "image/png": {}
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/public/questions/qr/{qr_id}": {
+            "get": {
+                "tags": [
+                    "Public Questions"
+                ],
+                "summary": "Get Question By Qr",
+                "operationId": "get_question_by_qr_public_questions_qr__qr_id__get",
+                "parameters": [
+                    {
+                        "name": "qr_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Qr Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/teams/": {
+            "get": {
+                "tags": [
+                    "Admin Teams"
+                ],
+                "summary": "Get Teams",
+                "operationId": "get_teams_admin_teams__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/": {
+            "get": {
+                "summary": "Root",
+                "operationId": "root__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "QuestionCreate": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "title": "Title"
+                    },
+                    "description": {
+                        "type": "string",
+                        "title": "Description"
+                    },
+                    "question_type": {
+                        "type": "string",
+                        "enum": [
+                            "mcq",
+                            "qna",
+                            "coding",
+                            "puzzle"
+                        ],
+                        "title": "Question Type"
+                    },
+                    "points": {
+                        "type": "integer",
+                        "title": "Points"
+                    },
+                    "time_limit_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Time Limit Seconds"
+                    },
+                    "correct_ans": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Correct Ans"
+                    },
+                    "image_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Image Url"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "title": "Is Active",
+                        "default": true
+                    },
+                    "hints": {
+                        "items": {
+                            "$ref": "#/components/schemas/QuestionHintCreate"
+                        },
+                        "type": "array",
+                        "title": "Hints"
+                    },
+                    "options": {
+                        "items": {
+                            "$ref": "#/components/schemas/QuestionOptionCreate"
+                        },
+                        "type": "array",
+                        "title": "Options"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "title",
+                    "description",
+                    "question_type",
+                    "points",
+                    "hints",
+                    "options"
+                ],
+                "title": "QuestionCreate"
+            },
+            "QuestionHintCreate": {
+                "properties": {
+                    "order_no": {
+                        "type": "integer",
+                        "title": "Order No"
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Text"
+                    },
+                    "penalty": {
+                        "type": "integer",
+                        "title": "Penalty"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "order_no",
+                    "text",
+                    "penalty"
+                ],
+                "title": "QuestionHintCreate"
+            },
+            "QuestionOptionCreate": {
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "enum": [
+                            "A",
+                            "B",
+                            "C",
+                            "D"
+                        ],
+                        "title": "Label"
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Text"
+                    },
+                    "is_correct": {
+                        "type": "boolean",
+                        "title": "Is Correct",
+                        "default": false
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "label",
+                    "text"
+                ],
+                "title": "QuestionOptionCreate"
+            },
+            "QuestionUpdate": {
+                "properties": {
+                    "title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Title"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "question_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Question Type"
+                    },
+                    "points": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Points"
+                    },
+                    "time_limit_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Time Limit Seconds"
+                    },
+                    "correct_ans": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Correct Ans"
+                    },
+                    "image_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Image Url"
+                    },
+                    "is_active": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Active"
+                    },
+                    "hints": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QuestionHintCreate"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hints"
+                    },
+                    "options": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QuestionOptionCreate"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Options"
+                    }
+                },
+                "type": "object",
+                "title": "QuestionUpdate"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

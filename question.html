@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST 2026 | Active Mission</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .mission-container {
+            max-width: 680px;
+            width: 100%;
+            margin: 1.5rem auto;
+        }
+        
+        .header-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+            text-decoration: none;
+        }
+
+        .header-logo-text {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
+        }
+
+        .header-logo-text span {
+            color: var(--accent);
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .desc-text {
+            font-size: 1.05rem;
+            color: #334155;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            white-space: pre-wrap;
+        }
+
+        /* Success Card overlay after submit */
+        .success-overlay {
+            text-align: center;
+            border-top: 4px solid var(--success);
+        }
+
+        .checkpoint-badge {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Center Container -->
+        <div class="mission-container">
+            
+            <!-- Logo Header -->
+            <a href="index.html" class="header-logo">
+                <div class="header-logo-text">CODE<span>QUEST</span></div>
+            </a>
+            
+            <!-- Main Content Area -->
+            <div id="main-content">
+                <!-- Utils getLoaderHTML() will load here -->
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center" style="margin-top: 3rem; padding-bottom: 1.5rem;">
+                <p style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em;">
+                    Code Quest 2026 • Security Protocol Active
+                </p>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Hint Modal Overlay -->
+    <div class="modal-overlay" id="hint-modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Decryption Hints</h3>
+                <button class="modal-close" onclick="Utils.closeModal('hint-modal-overlay')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="hint-modal-content">
+                    <!-- Dynamic hints will load here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('hint-modal-overlay')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core JS dependencies -->
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/question.js"></script>
+</body>
+</html>

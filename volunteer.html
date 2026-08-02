@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST 2026 | Question Manager</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .manager-container {
+            max-width: 800px;
+            width: 100%;
+            margin: 1.5rem auto;
+        }
+
+        .manager-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .portal-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+        }
+
+        .portal-title span {
+            color: var(--accent);
+        }
+
+        /* Form grouping layout */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 576px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Section Headings inside builder */
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Saved Question Feed Layout */
+        .saved-questions-section {
+            margin-top: 3rem;
+        }
+
+        .questions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .questions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Individual Question Card details */
+        .question-card {
+            border-left: 4px solid var(--primary);
+            transition: var(--transition);
+        }
+
+        .question-card.inactive {
+            border-left-color: var(--text-muted);
+            opacity: 0.85;
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="manager-container">
+            
+            <!-- Header panel -->
+            <div class="manager-header">
+                <div>
+                    <h1 class="portal-title">CODE<span>QUEST</span> • Question Manager</h1>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Configure questions and locate public challenge paths</p>
+                </div>
+                <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Back to Hub</a>
+            </div>
+
+            <!-- Create Question Form Card -->
+            <div class="card" id="form-card" style="border-top: 4px solid var(--primary);">
+                <form id="question-form" onsubmit="saveQuestion(event)">
+                    
+                    <h3 style="margin-bottom: 0.5rem; color: var(--primary);">Create Question</h3>
+                    <p style="margin-bottom: 2rem; font-size: 0.9rem; color: var(--text-muted);">Fill out the schema fields to add a new mission challenge.</p>
+
+                    <!-- Title -->
+                    <div class="form-group">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" id="title" class="form-control" placeholder="e.g. Decrypt the Array" required autocomplete="off">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" class="form-control" placeholder="Write question instructions, puzzle text or decryption logic..." required></textarea>
+                    </div>
+
+                    <!-- Row 1: Type & Points -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="question_type" class="form-label">Question Type</label>
+                            <select id="question_type" class="form-control" onchange="toggleTypeSpecificSections()" required>
+                                <option value="coding" selected>coding</option>
+                                <option value="mcq">mcq</option>
+                                <option value="qna">qna</option>
+                                <option value="puzzle">puzzle</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="points" class="form-label">Points</label>
+                            <input type="number" id="points" class="form-control" min="0" placeholder="e.g. 100" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Time Limit & Image URL -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="time_limit_seconds" class="form-label">Time Limit (seconds)</label>
+                            <input type="number" id="time_limit_seconds" class="form-control" min="0" placeholder="e.g. 600 (optional)" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="image_url" class="form-label">Image URL (optional)</label>
+                            <input type="url" id="image_url" class="form-control" placeholder="https://example.com/puzzle.png (optional)" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- Correct Answer (Shown for non-MCQ only) -->
+                    <div class="form-group" id="correct-ans-container">
+                        <label for="correct_ans" class="form-label">Correct Answer</label>
+                        <input type="text" id="correct_ans" class="form-control" placeholder="Solution key value..." autocomplete="off">
+                    </div>
+
+                    <!-- MCQ Options Section (Shown for MCQ only) -->
+                    <div id="mcq-options-section" style="display: none;">
+                        <div class="section-title">
+                            <span>Options</span>
+                            <button type="button" class="btn btn-secondary btn-sm" id="add-option-btn" onclick="addOptionRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                                + Add Option
+                            </button>
+                        </div>
+                        
+                        <div id="options-container">
+                            <!-- Dynamic MCQ option rows will render here -->
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Hints Section -->
+                    <div>
+                        <div class="section-title">
+                            <span>Hints</span>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addHintRow()" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+                                + Add Hint
+                            </button>
+                        </div>
+                        
+                        <div id="hints-container">
+                            <!-- Dynamic hint rows will render here -->
+                        </div>
+                    </div>
+
+                    <!-- Active Toggle Switch -->
+                    <div class="form-group" style="margin-top: 2rem; margin-bottom: 2rem;">
+                        <label class="switch-group">
+                            <div class="switch">
+                                <input type="checkbox" id="is_active" checked>
+                                <span class="slider"></span>
+                            </div>
+                            <span class="form-label" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 0.95rem;">
+                                Active Status (available to players)
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-3 mt-4" style="gap: 1rem;">
+                        <button type="button" class="btn btn-secondary" onclick="previewQuestion()">
+                            Preview
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetFormFields()" style="border-color: var(--text-muted); color: var(--text-muted);">
+                            Reset Form
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            Save Question
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Saved Questions feed -->
+            <div class="saved-questions-section">
+                <h3 style="border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; color: var(--primary);">Saved Questions</h3>
+                <div id="saved-questions-list" class="questions-grid">
+                    <!-- Dynamic saved question cards will load here -->
+                </div>
+            </div>
+
+            <!-- Footer branding -->
+            <div class="text-center" style="margin-top: 4rem; padding-bottom: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <p style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted);">
+                    Code Quest 2026 • Security Protocol Active
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Live Preview Modal Overlay -->
+    <div class="modal-overlay" id="preview-modal-overlay">
+        <div class="modal-container" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Live Question Preview</h3>
+                <button class="modal-close" onclick="Utils.closeModal('preview-modal-overlay')">&times;</button>
+            </div>
+            <div class="modal-body" id="preview-modal-body">
+                <!-- Preview elements rendered dynamically via js -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('preview-modal-overlay')">Close Preview</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/volunteer.js"></script>
+</body>
+</html>

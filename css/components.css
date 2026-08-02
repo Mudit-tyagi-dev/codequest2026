@@ -1,0 +1,432 @@
+/* Card Component */
+.card {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(15, 90, 67, 0.15);
+}
+
+@media (max-width: 576px) {
+    .card {
+        padding: 1.25rem;
+    }
+}
+
+/* Header & Mission styling */
+.mission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1rem;
+}
+
+.mission-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 0.25rem;
+}
+
+.mission-sub {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* Badge Component */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    gap: 0.25rem;
+}
+
+.badge-primary {
+    background-color: rgba(15, 90, 67, 0.1);
+    color: var(--primary);
+}
+
+.badge-accent {
+    background-color: rgba(244, 180, 0, 0.15);
+    color: var(--accent-dark);
+}
+
+.badge-success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.badge-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+.badge-neutral {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 1rem;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-container {
+    background-color: var(--card-bg);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--border);
+}
+
+.modal-overlay.active .modal-container {
+    transform: translateY(0);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+}
+
+.modal-close:hover {
+    color: var(--text-main);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+/* Loading Dots Component */
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    gap: 1rem;
+    min-height: 200px;
+}
+
+.dots-loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+}
+
+.dots-loader span {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    animation: dots-wave 1.2s infinite ease-in-out;
+}
+
+.dots-loader span:nth-child(2) {
+    animation-delay: 0.2s;
+    background-color: var(--primary-light);
+}
+
+.dots-loader span:nth-child(3) {
+    animation-delay: 0.4s;
+    background-color: var(--accent);
+}
+
+@keyframes dots-wave {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Countdown Timer */
+.timer-widget {
+    background-color: rgba(244, 180, 0, 0.1);
+    border: 1px solid rgba(244, 180, 0, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--accent-dark);
+}
+
+/* Code Container (Reverse Coding/Debugging) */
+.code-container {
+    background-color: #0f172a;
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    font-family: 'Fira Code', 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    border: 1px solid #1e293b;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.code-container::before {
+    content: "CODE";
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.1em;
+}
+
+/* Options Selector (MCQ Card Choices) */
+.options-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.option-card {
+    background-color: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 500;
+    position: relative;
+    user-select: none;
+}
+
+.option-card:hover {
+    border-color: var(--primary-light);
+    background-color: rgba(15, 90, 67, 0.02);
+}
+
+.radio-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.option-letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background-color: var(--bg);
+    color: var(--text-main);
+    font-weight: 700;
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.option-card:has(.radio-input:checked) {
+    border-color: var(--primary);
+    background-color: rgba(15, 90, 67, 0.05);
+    box-shadow: 0 4px 12px rgba(15, 90, 67, 0.05);
+}
+
+.option-card:has(.radio-input:checked) .option-letter {
+    background-color: var(--primary);
+    color: var(--text-light);
+    border-color: var(--primary);
+}
+
+/* Image question dynamic layout */
+.question-image-wrapper {
+    width: 100%;
+    max-height: 350px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    background-color: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.question-image {
+    max-width: 100%;
+    max-height: 350px;
+    object-fit: contain;
+}
+
+/* Hint Item UI */
+.hint-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.hint-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    background-color: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.hint-item.locked {
+    background-color: #f8fafc;
+    border-style: dashed;
+}
+
+.hint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hint-content {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    line-height: 1.5;
+}
+
+/* Dynamic Rows Admin Builder */
+.dynamic-row {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: start;
+}
+
+.dynamic-row-hints {
+    grid-template-columns: 2fr 1fr 50px;
+}
+
+.dynamic-row-options {
+    grid-template-columns: 80px 3fr 100px 50px;
+}
+
+@media (max-width: 576px) {
+    .dynamic-row-hints, .dynamic-row-options {
+        grid-template-columns: 1fr;
+    }
+    .dynamic-row-hints .btn-danger, .dynamic-row-options .btn-danger {
+        width: 100%;
+    }
+}
+
+/* Toast Notification */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: 320px;
+    width: calc(100% - 40px);
+}
+
+.toast {
+    background-color: var(--primary);
+    color: var(--text-light);
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 25px rgba(15, 90, 67, 0.15);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transform: translateY(-20px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: auto;
+    border-left: 4px solid var(--accent);
+    font-size: 0.9rem;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}

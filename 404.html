@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Checkpoint Coordinates Lost | CODE QUEST 2026</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .error-grid {
+            min-height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-card {
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            border-top: 4px solid var(--error);
+        }
+        .matrix-text {
+            font-size: 5rem;
+            font-weight: 800;
+            color: var(--error);
+            line-height: 1;
+            margin-bottom: 1rem;
+            letter-spacing: -0.05em;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="error-grid">
+            <div class="card error-card">
+                <div class="matrix-text">404</div>
+                <h3 style="margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-main);">Coordinates Out of Bounds</h3>
+                <p style="margin-bottom: 2rem;">
+                    The scanning radar could not resolve these checkpoint coordinates. The mission directory is classified or does not exist.
+                </p>
+                <div class="grid grid-cols-2">
+                    <a href="index.html" class="btn btn-primary btn-sm">Return to Hub</a>
+                    <button onclick="window.history.back()" class="btn btn-secondary btn-sm">Previous Grid</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
