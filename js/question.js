@@ -17,8 +17,7 @@ async function initQuestionPage() {
             <div class="card text-center" style="padding: 3rem 1.5rem;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
                 <h3>No Mission ID Detected</h3>
-                <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Please scan a valid Code Quest checkpoint QR code or go back to the hub.</p>
-                <a href="index.html" class="btn btn-primary" style="max-width: 200px; margin: 0 auto;">Go to Hub</a>
+                <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Please scan a valid Code Quest checkpoint QR code.</p>
             </div>
         `;
         return;
@@ -45,7 +44,6 @@ async function loadQuestion() {
                     <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
                     <h3>Mission Not Found</h3>
                     <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">The checkpoint ID is invalid or does not correspond to an active challenge.</p>
-                    <a href="index.html" class="btn btn-primary" style="max-width: 200px; margin: 0 auto;">Go to Hub</a>
                 </div>
             `;
             return;
@@ -62,7 +60,6 @@ async function loadQuestion() {
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3>Checkpoint Locked</h3>
                     <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">This checkpoint mission has been temporarily deactivated by administrators.</p>
-                    <a href="index.html" class="btn btn-primary" style="max-width: 200px; margin: 0 auto;">Go to Hub</a>
                 </div>
             `;
             return;
@@ -189,47 +186,121 @@ function setupTimer(timeLimit) {
     const timerContainer = document.getElementById('timer-container');
     if (!timeLimit || timeLimit <= 0) return;
     
-    const startTimeKey = `cq_start_time_${questionUid}`;
-    let startTime = localStorage.getItem(startTimeKey);
+    const startKey = `cq_timer_start_${questionUid}`;
+    const limitKey = `cq_timer_limit_${questionUid}`;
+    const qidKey = `cq_timer_qid_${questionUid}`;
+    const bonusKey = `cq_timer_bonus_${questionUid}`;
     
-    if (!startTime) {
-        startTime = new Date().getTime().toString();
-        localStorage.setItem(startTimeKey, startTime);
+    let startTimestamp = localStorage.getItem(startKey);
+    let storedLimit = localStorage.getItem(limitKey);
+    
+    const currentEpoch = Math.floor(Date.now() / 1000);
+    
+    if (!startTimestamp) {
+        // First scan
+        startTimestamp = currentEpoch.toString();
+        storedLimit = timeLimit.toString();
+        
+        localStorage.setItem(qidKey, questionUid);
+        localStorage.setItem(startKey, startTimestamp);
+        localStorage.setItem(limitKey, storedLimit);
+    } else {
+        // Refresh load
+        const bonusUsed = localStorage.getItem(bonusKey);
+        if (!bonusUsed) {
+            let currentLimit = parseInt(storedLimit) || timeLimit;
+            currentLimit += 5;
+            storedLimit = currentLimit.toString();
+            
+            localStorage.setItem(limitKey, storedLimit);
+            localStorage.setItem(bonusKey, 'true');
+            
+            Utils.showToast('Network buffer applied: +5s grace period added!');
+        }
     }
     
-    const startMs = parseInt(startTime);
-    const limitMs = timeLimit * 1000;
+    const startSec = parseInt(startTimestamp);
+    let limitSec = parseInt(storedLimit);
     
     if (timerInterval) clearInterval(timerInterval);
     
-    function updateTimer() {
-        const now = new Date().getTime();
-        const elapsed = now - startMs;
-        const remainingMs = limitMs - elapsed;
+    function disableSubmissionAndShowTimeUp() {
+        if (timerInterval) clearInterval(timerInterval);
         
-        if (remainingMs <= 0) {
-            clearInterval(timerInterval);
+        const form = document.getElementById('submission-form');
+        if (form) {
+            const inputs = form.querySelectorAll('textarea, input[type="radio"], input[type="checkbox"], input[type="text"]');
+            inputs.forEach(input => {
+                input.disabled = true;
+            });
+            
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+        }
+        
+        const formContainer = document.getElementById('submission-form');
+        if (formContainer) {
+            let timeUpEl = document.getElementById('time-up-overlay');
+            if (!timeUpEl) {
+                timeUpEl = document.createElement('div');
+                timeUpEl.id = 'time-up-overlay';
+                timeUpEl.style.marginTop = '1.5rem';
+                timeUpEl.style.padding = '2rem';
+                timeUpEl.style.border = '2px solid var(--error)';
+                timeUpEl.style.borderRadius = 'var(--radius)';
+                timeUpEl.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                timeUpEl.style.textAlign = 'center';
+                timeUpEl.style.color = 'var(--error)';
+                timeUpEl.innerHTML = `
+                    <div style="font-size: 3rem; margin-bottom: 0.5rem;">⏰</div>
+                    <h3 style="color: var(--error); margin: 0 0 0.5rem 0; font-weight: 800; font-size: 1.5rem;">Time Up</h3>
+                    <p style="color: var(--text-main); font-weight: 600; margin: 0; font-size: 1.05rem;">Contact the Volunteer.</p>
+                `;
+                formContainer.parentNode.insertBefore(timeUpEl, formContainer);
+                formContainer.style.display = 'none';
+            }
+        }
+        
+        if (timerContainer) {
             timerContainer.innerHTML = `
                 <div class="timer-widget" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: var(--error);">
-                    ⏰ TIME OUT
+                    ⏰ TIME UP
                 </div>
             `;
+        }
+    }
+    
+    function updateTimer() {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const elapsed = nowSec - startSec;
+        const remaining = limitSec - elapsed;
+        
+        if (remaining <= 0) {
+            disableSubmissionAndShowTimeUp();
             return;
         }
         
-        const totalSeconds = Math.floor(remainingMs / 1000);
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
         
-        timerContainer.innerHTML = `
-            <div class="timer-widget">
-                ⏰ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}
-            </div>
-        `;
+        if (timerContainer) {
+            timerContainer.innerHTML = `
+                <div class="timer-widget">
+                    ⏰ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}
+                </div>
+            `;
+        }
     }
     
-    updateTimer();
-    timerInterval = setInterval(updateTimer, 1000);
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (limitSec - (nowSec - startSec) <= 0) {
+        disableSubmissionAndShowTimeUp();
+    } else {
+        updateTimer();
+        timerInterval = setInterval(updateTimer, 1000);
+    }
 }
 
 function submitAnswer(e) {

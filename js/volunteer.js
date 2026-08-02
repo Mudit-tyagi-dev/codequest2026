@@ -10,7 +10,7 @@ async function loadSavedQuestions() {
     listContainer.innerHTML = Utils.getLoaderHTML('Loading saved questions...');
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/questions/`, {
+        const response = await fetch('https://j7jvczrc-8000.inc1.devtunnels.ms/admin/questions/', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -408,9 +408,50 @@ async function saveQuestion(event) {
         const responseData = await response.json();
         
         if (responseData && responseData.id) {
-            // Success alert dialog / toast
-            alert(`✅ Question Created Successfully\n\nQuestion ID: ${responseData.id}`);
             Utils.showToast('Question Created Successfully!');
+            
+            // Display loading state for QR code
+            const qrResultContainer = document.getElementById('qr-result-container');
+            if (qrResultContainer) {
+                qrResultContainer.style.display = 'block';
+                qrResultContainer.innerHTML = Utils.getLoaderHTML('Generating Checkpoint QR Code...');
+                
+                try {
+                    const qrRes = await CodeQuestAPI.generateQR(responseData.id);
+                    if (qrRes && qrRes.isBlob) {
+                        const qrUrl = URL.createObjectURL(qrRes.blob);
+                        
+                        // Render success layout and QR code
+                        qrResultContainer.innerHTML = `
+                            <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid var(--success); border-radius: var(--radius); padding: 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                                <div style="font-size: 2.5rem; color: var(--success);">✅</div>
+                                <h3 style="color: var(--text-main); margin: 0;">Question Created Successfully</h3>
+                                <div style="font-family: monospace; font-size: 0.95rem; color: var(--text-muted); background: var(--bg); padding: 0.5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                    Question ID: <strong style="color: var(--text-main);">${responseData.id}</strong>
+                                </div>
+                                
+                                <div style="border: 2px solid var(--border); border-radius: var(--radius); padding: 1rem; background-color: white; margin: 1rem 0; max-width: 250px; box-shadow: var(--shadow-sm);">
+                                    <img src="${qrUrl}" alt="Generated Question QR Code" style="width: 100%; height: auto; display: block;" id="generated-qr-image">
+                                </div>
+                                
+                                <a href="${qrUrl}" download="question_QR_${responseData.id}.png" class="btn btn-primary btn-sm" style="max-width: 220px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
+                                    📥 Download QR Code
+                                </a>
+                            </div>
+                        `;
+                    } else {
+                        throw new Error('API response did not contain a valid image blob.');
+                    }
+                } catch (qrErr) {
+                    console.error('QR generation failed:', qrErr);
+                    qrResultContainer.innerHTML = `
+                        <div class="card text-center" style="border-color: var(--error); padding: 1.5rem;">
+                            <h4 style="color: var(--error);">Question Created, but QR Generation Failed</h4>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(qrErr.message)}</p>
+                        </div>
+                    `;
+                }
+            }
             
             // Reset Form Fields
             resetFormFields();
@@ -435,6 +476,11 @@ function resetFormFields() {
     document.getElementById('hints-container').innerHTML = '';
     document.getElementById('options-container').innerHTML = '';
     toggleTypeSpecificSections();
+    const qrResultContainer = document.getElementById('qr-result-container');
+    if (qrResultContainer) {
+        qrResultContainer.style.display = 'none';
+        qrResultContainer.innerHTML = '';
+    }
 }
 
 // Escape HTML utility helper
