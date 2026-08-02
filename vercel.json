@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/q/:qr_id",
+      "destination": "/question.html?qr_id=:qr_id"
+    }
+  ]
+}

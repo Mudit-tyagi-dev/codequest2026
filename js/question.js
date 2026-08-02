@@ -1,5 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
-    initQuestionPage();
+document.addEventListener("DOMContentLoaded", () => {
+  initQuestionPage();
 });
 
 let questionId = null;
@@ -8,115 +8,162 @@ let activeQuestion = null;
 let timerInterval = null;
 
 async function initQuestionPage() {
-    const mainContent = document.getElementById('main-content');
-    questionId = Utils.getQueryParam('id');
-    questionUid = Utils.getQueryParam('uid');
-    
-    if (!questionId && !questionUid) {
-        mainContent.innerHTML = `
+  const mainContent = document.getElementById("main-content");
+
+  // Parse URL parameters
+  const params = new URLSearchParams(window.location.search);
+  let qrId = params.get("qr_id");
+
+  if (!qrId) {
+    // Fallback for /q/UUID format
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split("/");
+    const qIndex = pathParts.indexOf("q");
+    if (qIndex !== -1 && pathParts[qIndex + 1]) {
+      qrId = pathParts[qIndex + 1];
+    }
+  }
+
+  // Extract Direct Question ID fallback or other uid fallbacks
+  questionId = params.get("id");
+  questionUid = qrId || params.get("uid");
+
+  if (!questionId && !questionUid) {
+    mainContent.innerHTML = `
             <div class="card text-center" style="padding: 3rem 1.5rem;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
                 <h3>No Mission ID Detected</h3>
                 <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Please scan a valid Code Quest checkpoint QR code.</p>
             </div>
         `;
-        return;
-    }
-    
-    loadQuestion();
+    return;
+  }
+
+  loadQuestion();
 }
 
 async function loadQuestion() {
-    const mainContent = document.getElementById('main-content');
-    mainContent.innerHTML = Utils.getLoaderHTML('Decrypting Mission Parameters...');
-    
+  const mainContent = document.getElementById("main-content");
+  mainContent.innerHTML = Utils.getLoaderHTML(
+    "Decrypting Mission Parameters...",
+  );
+
+  try {
+    let question = null;
     try {
-        let question = null;
-        if (questionId) {
-            question = await CodeQuestAPI.getQuestionById(questionId);
-        } else if (questionUid) {
-            question = await CodeQuestAPI.getQuestionByQR(questionUid);
-        }
-        
-        if (!question) {
-            mainContent.innerHTML = `
+      if (questionId) {
+        question = await CodeQuestAPI.getQuestionById(questionId);
+      } else if (questionUid) {
+        question = await CodeQuestAPI.getQuestionByQR(questionUid);
+      }
+    } catch (err) {
+      console.error("Error loading question:", err);
+      if (questionUid) {
+        mainContent.innerHTML = `
+                    <div class="card text-center" style="padding: 3rem 1.5rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                        <h3>404</h3>
+                        <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Question Not Found</p>
+                    </div>
+                `;
+        return;
+      }
+      throw err;
+    }
+
+    if (!question) {
+      if (questionUid) {
+        mainContent.innerHTML = `
+                    <div class="card text-center" style="padding: 3rem 1.5rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                        <h3>404</h3>
+                        <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Question Not Found</p>
+                    </div>
+                `;
+        return;
+      }
+      mainContent.innerHTML = `
                 <div class="card text-center" style="padding: 3rem 1.5rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
                     <h3>Mission Not Found</h3>
                     <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">The checkpoint ID is invalid or does not correspond to an active challenge.</p>
                 </div>
             `;
-            return;
-        }
-        
-        activeQuestion = question;
-        
-        // Ensure questionUid is set to unique identifier for local storage lookups
-        questionUid = questionId || questionUid || (question && question.id);
-        
-        if (!question.is_active) {
-            mainContent.innerHTML = `
+      return;
+    }
+
+    activeQuestion = question;
+
+    // Ensure questionUid is set to unique identifier for local storage lookups
+    questionUid = questionId || questionUid || (question && question.id);
+
+    if (!question.is_active) {
+      mainContent.innerHTML = `
                 <div class="card text-center" style="padding: 3rem 1.5rem; border-color: var(--accent);">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3>Checkpoint Locked</h3>
                     <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">This checkpoint mission has been temporarily deactivated by administrators.</p>
                 </div>
             `;
-            return;
-        }
-        
-        // Check if user already submitted an answer to this question
-        const savedAnswer = Utils.getTeamAnswer(questionUid);
-        if (savedAnswer && savedAnswer.submitted) {
-            renderSuccessState(savedAnswer.answer, savedAnswer.timestamp);
-        } else {
-            renderQuestion(question);
-        }
-    } catch (error) {
-        Utils.renderError(mainContent, error.message, () => loadQuestion());
+      return;
     }
+
+    // Check if user already submitted an answer to this question
+    const savedAnswer = Utils.getTeamAnswer(questionUid);
+    if (savedAnswer && savedAnswer.submitted) {
+      renderSuccessState(savedAnswer.answer, savedAnswer.timestamp);
+    } else {
+      renderQuestion(question);
+    }
+  } catch (error) {
+    Utils.renderError(mainContent, error.message, () => loadQuestion());
+  }
 }
 
 function renderQuestion(q) {
-    const mainContent = document.getElementById('main-content');
-    
-    // Check if MCQ options exist
-    const hasOptions = q.options && q.options.length > 0;
-    
-    // Try to restore in-progress answer from local storage
-    const saved = Utils.getTeamAnswer(questionUid);
-    const inProgressAns = saved ? saved.answer : '';
-    
-    let answerHtml = '';
-    if (q.question_type === 'mcq' && hasOptions) {
-        answerHtml = `
+  const mainContent = document.getElementById("main-content");
+
+  // Check if MCQ options exist
+  const hasOptions = q.options && q.options.length > 0;
+
+  // Try to restore in-progress answer from local storage
+  const saved = Utils.getTeamAnswer(questionUid);
+  const inProgressAns = saved ? saved.answer : "";
+
+  let answerHtml = "";
+  if (q.question_type === "mcq" && hasOptions) {
+    answerHtml = `
             <div class="form-group">
                 <label class="form-label">Select Option</label>
                 <div class="options-grid" id="options-selector">
-                    ${q.options.map(opt => `
+                    ${q.options
+                      .map(
+                        (opt) => `
                         <label class="option-card">
-                            <input type="radio" name="mcq-option" value="${opt.label}" class="radio-input" ${inProgressAns === opt.label ? 'checked' : ''}>
+                            <input type="radio" name="mcq-option" value="${opt.label}" class="radio-input" ${inProgressAns === opt.label ? "checked" : ""}>
                             <div class="option-letter">${opt.label}</div>
                             <div class="option-text">${escapeHtml(opt.text)}</div>
                         </label>
-                    `).join('')}
+                    `,
+                      )
+                      .join("")}
                 </div>
                 <input type="hidden" id="answer-input" value="${escapeHtml(inProgressAns)}">
             </div>
         `;
-    } else {
-        answerHtml = `
+  } else {
+    answerHtml = `
             <div class="form-group">
                 <label for="answer-input" class="form-label">Enter Mission Solution</label>
                 <textarea id="answer-input" class="form-control" placeholder="Type your decryption logic or solution here..." required>${escapeHtml(inProgressAns)}</textarea>
             </div>
         `;
-    }
-    
-    const hintsCount = q.hints ? q.hints.length : 0;
-    const hasHints = hintsCount > 0;
-    
-    mainContent.innerHTML = `
+  }
+
+  const hintsCount = q.hints ? q.hints.length : 0;
+  const hasHints = hintsCount > 0;
+
+  mainContent.innerHTML = `
         <div class="card">
             <!-- Header metadata -->
             <div class="mission-header">
@@ -136,22 +183,30 @@ function renderQuestion(q) {
             <div class="desc-text">${escapeHtml(q.description)}</div>
             
             <!-- Image Attachment -->
-            ${q.image_url ? `
+            ${
+              q.image_url
+                ? `
                 <div class="question-image-wrapper">
                     <img class="question-image" src="${escapeHtml(Utils.formatImageUrl(q.image_url))}" alt="Mission Intel Attachment" loading="lazy">
                 </div>
-            ` : ''}
+            `
+                : ""
+            }
             
             <!-- Form Input -->
             <form id="submission-form" onsubmit="submitAnswer(event)">
                 ${answerHtml}
                 
                 <div class="grid grid-cols-2 mt-4">
-                    ${hasHints ? `
+                    ${
+                      hasHints
+                        ? `
                         <button type="button" class="btn btn-secondary" onclick="openHintsModal()">
                             Need Decryption Hint? (${hintsCount})
                         </button>
-                    ` : '<div></div>'}
+                    `
+                        : "<div></div>"
+                    }
                     <button type="submit" class="btn btn-primary" id="submit-btn">
                         Submit Solution
                     </button>
@@ -159,177 +214,182 @@ function renderQuestion(q) {
             </form>
         </div>
     `;
-    
-    // Bind Realtime Input Saving
-    const answerInput = document.getElementById('answer-input');
-    
-    if (q.question_type === 'mcq' && hasOptions) {
-        const radios = document.querySelectorAll('.radio-input');
-        radios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                const selectedVal = radio.value;
-                answerInput.value = selectedVal;
-                Utils.saveTeamAnswer(questionUid, selectedVal);
-            });
-        });
-    } else {
-        answerInput.addEventListener('input', (e) => {
-            Utils.saveTeamAnswer(questionUid, e.target.value);
-        });
-    }
-    
-    // Setup Countdown Timer
-    setupTimer(q.time_limit_seconds);
+
+  // Bind Realtime Input Saving
+  const answerInput = document.getElementById("answer-input");
+
+  if (q.question_type === "mcq" && hasOptions) {
+    const radios = document.querySelectorAll(".radio-input");
+    radios.forEach((radio) => {
+      radio.addEventListener("change", () => {
+        const selectedVal = radio.value;
+        answerInput.value = selectedVal;
+        Utils.saveTeamAnswer(questionUid, selectedVal);
+      });
+    });
+  } else {
+    answerInput.addEventListener("input", (e) => {
+      Utils.saveTeamAnswer(questionUid, e.target.value);
+    });
+  }
+
+  // Setup Countdown Timer
+  setupTimer(q.time_limit_seconds);
 }
 
 function setupTimer(timeLimit) {
-    const timerContainer = document.getElementById('timer-container');
-    if (!timeLimit || timeLimit <= 0) return;
-    
-    const startKey = `cq_timer_start_${questionUid}`;
-    const limitKey = `cq_timer_limit_${questionUid}`;
-    const qidKey = `cq_timer_qid_${questionUid}`;
-    const bonusKey = `cq_timer_bonus_${questionUid}`;
-    
-    let startTimestamp = localStorage.getItem(startKey);
-    let storedLimit = localStorage.getItem(limitKey);
-    
-    const currentEpoch = Math.floor(Date.now() / 1000);
-    
-    if (!startTimestamp) {
-        // First scan
-        startTimestamp = currentEpoch.toString();
-        storedLimit = timeLimit.toString();
-        
-        localStorage.setItem(qidKey, questionUid);
-        localStorage.setItem(startKey, startTimestamp);
-        localStorage.setItem(limitKey, storedLimit);
-    } else {
-        // Refresh load
-        const bonusUsed = localStorage.getItem(bonusKey);
-        if (!bonusUsed) {
-            let currentLimit = parseInt(storedLimit) || timeLimit;
-            currentLimit += 5;
-            storedLimit = currentLimit.toString();
-            
-            localStorage.setItem(limitKey, storedLimit);
-            localStorage.setItem(bonusKey, 'true');
-            
-            Utils.showToast('Network buffer applied: +5s grace period added!');
-        }
+  const timerContainer = document.getElementById("timer-container");
+  if (!timeLimit || timeLimit <= 0) return;
+
+  const startKey = `cq_timer_start_${questionUid}`;
+  const limitKey = `cq_timer_limit_${questionUid}`;
+  const qidKey = `cq_timer_qid_${questionUid}`;
+  const bonusKey = `cq_timer_bonus_${questionUid}`;
+
+  let startTimestamp = localStorage.getItem(startKey);
+  let storedLimit = localStorage.getItem(limitKey);
+
+  const currentEpoch = Math.floor(Date.now() / 1000);
+
+  if (!startTimestamp) {
+    // First scan
+    startTimestamp = currentEpoch.toString();
+    storedLimit = timeLimit.toString();
+
+    localStorage.setItem(qidKey, questionUid);
+    localStorage.setItem(startKey, startTimestamp);
+    localStorage.setItem(limitKey, storedLimit);
+  } else {
+    // Refresh load
+    const bonusUsed = localStorage.getItem(bonusKey);
+    if (!bonusUsed) {
+      let currentLimit = parseInt(storedLimit) || timeLimit;
+      currentLimit += 5;
+      storedLimit = currentLimit.toString();
+
+      localStorage.setItem(limitKey, storedLimit);
+      localStorage.setItem(bonusKey, "true");
+
+      Utils.showToast("Network buffer applied: +5s grace period added!");
     }
-    
-    const startSec = parseInt(startTimestamp);
-    let limitSec = parseInt(storedLimit);
-    
+  }
+
+  const startSec = parseInt(startTimestamp);
+  let limitSec = parseInt(storedLimit);
+
+  if (timerInterval) clearInterval(timerInterval);
+
+  function disableSubmissionAndShowTimeUp() {
     if (timerInterval) clearInterval(timerInterval);
-    
-    function disableSubmissionAndShowTimeUp() {
-        if (timerInterval) clearInterval(timerInterval);
-        
-        const form = document.getElementById('submission-form');
-        if (form) {
-            const inputs = form.querySelectorAll('textarea, input[type="radio"], input[type="checkbox"], input[type="text"]');
-            inputs.forEach(input => {
-                input.disabled = true;
-            });
-            
-            const submitBtn = document.getElementById('submit-btn');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-            }
-        }
-        
-        const formContainer = document.getElementById('submission-form');
-        if (formContainer) {
-            let timeUpEl = document.getElementById('time-up-overlay');
-            if (!timeUpEl) {
-                timeUpEl = document.createElement('div');
-                timeUpEl.id = 'time-up-overlay';
-                timeUpEl.style.marginTop = '1.5rem';
-                timeUpEl.style.padding = '2rem';
-                timeUpEl.style.border = '2px solid var(--error)';
-                timeUpEl.style.borderRadius = 'var(--radius)';
-                timeUpEl.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
-                timeUpEl.style.textAlign = 'center';
-                timeUpEl.style.color = 'var(--error)';
-                timeUpEl.innerHTML = `
+
+    const form = document.getElementById("submission-form");
+    if (form) {
+      const inputs = form.querySelectorAll(
+        'textarea, input[type="radio"], input[type="checkbox"], input[type="text"]',
+      );
+      inputs.forEach((input) => {
+        input.disabled = true;
+      });
+
+      const submitBtn = document.getElementById("submit-btn");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+      }
+    }
+
+    const formContainer = document.getElementById("submission-form");
+    if (formContainer) {
+      let timeUpEl = document.getElementById("time-up-overlay");
+      if (!timeUpEl) {
+        timeUpEl = document.createElement("div");
+        timeUpEl.id = "time-up-overlay";
+        timeUpEl.style.marginTop = "1.5rem";
+        timeUpEl.style.padding = "2rem";
+        timeUpEl.style.border = "2px solid var(--error)";
+        timeUpEl.style.borderRadius = "var(--radius)";
+        timeUpEl.style.backgroundColor = "rgba(239, 68, 68, 0.05)";
+        timeUpEl.style.textAlign = "center";
+        timeUpEl.style.color = "var(--error)";
+        timeUpEl.innerHTML = `
                     <div style="font-size: 3rem; margin-bottom: 0.5rem;">⏰</div>
                     <h3 style="color: var(--error); margin: 0 0 0.5rem 0; font-weight: 800; font-size: 1.5rem;">Time Up</h3>
                     <p style="color: var(--text-main); font-weight: 600; margin: 0; font-size: 1.05rem;">Contact the Volunteer.</p>
                 `;
-                formContainer.parentNode.insertBefore(timeUpEl, formContainer);
-                formContainer.style.display = 'none';
-            }
-        }
-        
-        if (timerContainer) {
-            timerContainer.innerHTML = `
+        formContainer.parentNode.insertBefore(timeUpEl, formContainer);
+        formContainer.style.display = "none";
+      }
+    }
+
+    if (timerContainer) {
+      timerContainer.innerHTML = `
                 <div class="timer-widget" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: var(--error);">
                     ⏰ TIME UP
                 </div>
             `;
-        }
     }
-    
-    function updateTimer() {
-        const nowSec = Math.floor(Date.now() / 1000);
-        const elapsed = nowSec - startSec;
-        const remaining = limitSec - elapsed;
-        
-        if (remaining <= 0) {
-            disableSubmissionAndShowTimeUp();
-            return;
-        }
-        
-        const mins = Math.floor(remaining / 60);
-        const secs = remaining % 60;
-        
-        if (timerContainer) {
-            timerContainer.innerHTML = `
+  }
+
+  function updateTimer() {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const elapsed = nowSec - startSec;
+    const remaining = limitSec - elapsed;
+
+    if (remaining <= 0) {
+      disableSubmissionAndShowTimeUp();
+      return;
+    }
+
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+
+    if (timerContainer) {
+      timerContainer.innerHTML = `
                 <div class="timer-widget">
-                    ⏰ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}
+                    ⏰ ${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}
                 </div>
             `;
-        }
     }
-    
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (limitSec - (nowSec - startSec) <= 0) {
-        disableSubmissionAndShowTimeUp();
-    } else {
-        updateTimer();
-        timerInterval = setInterval(updateTimer, 1000);
-    }
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (limitSec - (nowSec - startSec) <= 0) {
+    disableSubmissionAndShowTimeUp();
+  } else {
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+  }
 }
 
 function submitAnswer(e) {
-    e.preventDefault();
-    const answerVal = document.getElementById('answer-input').value.trim();
-    
-    if (!answerVal) {
-        alert('Please enter a decryption solution before submitting!');
-        return;
-    }
-    
-    const timestamp = new Date().toISOString();
-    
-    // Save to local storage as verified submitted
-    localStorage.setItem(`cq_ans_${questionUid}`, JSON.stringify({
-        answer: answerVal,
-        timestamp,
-        submitted: true
-    }));
-    
-    if (timerInterval) clearInterval(timerInterval);
-    renderSuccessState(answerVal, timestamp);
+  e.preventDefault();
+  const answerVal = document.getElementById("answer-input").value.trim();
+
+  if (!answerVal) {
+    alert("Please enter a decryption solution before submitting!");
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+
+  // Save to local storage as verified submitted
+  localStorage.setItem(
+    `cq_ans_${questionUid}`,
+    JSON.stringify({
+      answer: answerVal,
+      timestamp,
+      submitted: true,
+    }),
+  );
+
+  if (timerInterval) clearInterval(timerInterval);
+  renderSuccessState(answerVal, timestamp);
 }
 
 function renderSuccessState(answer, timestampStr) {
-    const mainContent = document.getElementById('main-content');
-    const formattedTime = new Date(timestampStr).toLocaleTimeString();
-    
-    mainContent.innerHTML = `
+  const mainContent = document.getElementById("main-content");
+  const formattedTime = new Date(timestampStr).toLocaleTimeString();
+
+  mainContent.innerHTML = `
         <div class="card success-overlay">
             <div style="font-size: 4rem; margin-bottom: 1rem;">📡</div>
             <span class="checkpoint-badge" style="background-color: var(--success); display: inline-block; margin-bottom: 1rem;">
@@ -365,36 +425,39 @@ function renderSuccessState(answer, timestampStr) {
 }
 
 function editSubmittedAnswer() {
-    const saved = Utils.getTeamAnswer(questionUid);
-    if (saved) {
-        saved.submitted = false;
-        localStorage.setItem(`cq_ans_${questionUid}`, JSON.stringify(saved));
-    }
-    loadQuestion();
+  const saved = Utils.getTeamAnswer(questionUid);
+  if (saved) {
+    saved.submitted = false;
+    localStorage.setItem(`cq_ans_${questionUid}`, JSON.stringify(saved));
+  }
+  loadQuestion();
 }
 
 /* Hints Modal Controls */
 function openHintsModal() {
-    renderHintsModal();
-    Utils.openModal('hint-modal-overlay');
+  renderHintsModal();
+  Utils.openModal("hint-modal-overlay");
 }
 
 function renderHintsModal() {
-    const container = document.getElementById('hint-modal-content');
-    if (!activeQuestion || !activeQuestion.hints) return;
-    
-    const revealedIndices = Utils.getRevealedHints(questionUid);
-    
-    // Sort hints by order_no
-    const sortedHints = [...activeQuestion.hints].sort((a, b) => a.order_no - b.order_no);
-    
-    container.innerHTML = `
+  const container = document.getElementById("hint-modal-content");
+  if (!activeQuestion || !activeQuestion.hints) return;
+
+  const revealedIndices = Utils.getRevealedHints(questionUid);
+
+  // Sort hints by order_no
+  const sortedHints = [...activeQuestion.hints].sort(
+    (a, b) => a.order_no - b.order_no,
+  );
+
+  container.innerHTML = `
         <div class="hint-list">
-            ${sortedHints.map((hint, idx) => {
+            ${sortedHints
+              .map((hint, idx) => {
                 const isRevealed = revealedIndices.includes(hint.order_no);
-                
+
                 if (isRevealed) {
-                    return `
+                  return `
                         <div class="hint-item">
                             <div class="hint-header">
                                 <span style="font-weight: 700; color: var(--primary); font-size: 0.85rem; text-transform: uppercase;">
@@ -406,7 +469,7 @@ function renderHintsModal() {
                         </div>
                     `;
                 } else {
-                    return `
+                  return `
                         <div class="hint-item locked">
                             <div class="hint-header">
                                 <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
@@ -422,27 +485,34 @@ function renderHintsModal() {
                         </div>
                     `;
                 }
-            }).join('')}
+              })
+              .join("")}
         </div>
     `;
 }
 
 function confirmRevealHint(orderNo, penalty) {
-    if (confirm(`Decrypting this hint will incur a deduction of ${penalty} points from your final challenge score.\n\nAre you sure you wish to proceed?`)) {
-        Utils.revealHint(questionUid, orderNo);
-        renderHintsModal();
-    }
+  if (
+    confirm(
+      `Decrypting this hint will incur a deduction of ${penalty} points from your final challenge score.\n\nAre you sure you wish to proceed?`,
+    )
+  ) {
+    Utils.revealHint(questionUid, orderNo);
+    renderHintsModal();
+  }
 }
 
 // Escape HTML utility helper
 function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+  if (!text) return "";
+  const map = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, function (m) {
+    return map[m];
+  });
 }
