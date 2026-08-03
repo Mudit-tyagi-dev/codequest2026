@@ -45,6 +45,7 @@ async function loadQuestionsList() {
         console.log("Questions:", questions);
 
         questionsList = questions;
+        populateQuestionsDropdown();
         tableBody.innerHTML = '';
 
         if (questions && questions.length > 0) {
@@ -184,19 +185,53 @@ function renderTeams(teams) {
     tableBody.innerHTML = '';
     teams.forEach(t => {
         const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.title = 'Click to manage team progress';
+        tr.onclick = (event) => {
+            if (event.target.closest('button') || event.target.closest('a')) {
+                return;
+            }
+            loadAdminTeamDetails(t.qr_id || t.id);
+        };
+        
+        const teamName = t.team_name || t.name || 'Unnamed Team';
+        const membersVal = Array.isArray(t.members) ? t.members.join(', ') : (t.members || t.leader_name || 'None');
+        const displayStatus = mapBackendToUiStatus(t.status);
         
         let statusClass = 'badge-neutral';
-        if (t.status === 'Completed') statusClass = 'badge-success';
-        if (t.status === 'Disqualified') statusClass = 'badge-danger';
-        if (t.status === 'Ongoing') statusClass = 'badge-accent';
+        if (displayStatus === 'Completed') statusClass = 'badge-success';
+        if (displayStatus === 'Disqualified') statusClass = 'badge-danger';
+        if (displayStatus === 'Ongoing') statusClass = 'badge-accent';
+
+        const currentCheckpoint = t.current_checkpoint || localStorage.getItem(`codequest_team_${t.id}_current_checkpoint`) || '0';
+        const currentQuestion = t.current_question || localStorage.getItem(`codequest_team_${t.id}_current_question`) || 'None';
+
+        const qrUrl = t.qr_url;
+        const qrFullUrl = qrUrl ? (CodeQuestAPI.BASE_URL + qrUrl) : '';
+        
+        let actionButtons = '';
+        if (qrUrl) {
+            actionButtons = `
+                <button type="button" class="btn btn-secondary btn-sm" onclick="showTeamQRModal('${escapeHtml(teamName)}', '${t.qr_id}', '${escapeHtml(qrUrl)}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm); margin-right: 0.25rem;">🔍 Preview QR</button>
+                <a href="${qrFullUrl}" download="team_${teamName.replace(/\s+/g, '_')}_QR.png" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">📥 Download QR</a>
+            `;
+        } else {
+            actionButtons = `
+                <button type="button" class="btn btn-secondary btn-sm" onclick="showTeamQRModal('${escapeHtml(teamName)}', '${t.qr_id}', '')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm); margin-right: 0.25rem;">🔍 Preview QR</button>
+                <button type="button" class="btn btn-primary btn-sm" disabled style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm); opacity: 0.5;">📥 Download QR</button>
+            `;
+        }
 
         tr.innerHTML = `
             <td style="font-family: monospace; font-size: 0.85rem; font-weight: 700;">${t.id}</td>
-            <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(t.name)}</td>
-            <td style="font-size: 0.85rem;">${Array.isArray(t.members) ? t.members.join(', ') : (t.members || 'None')}</td>
-            <td><span class="badge ${statusClass}" style="font-size: 0.65rem;">${t.status || 'Ongoing'}</span></td>
-            <td><span class="badge badge-primary" style="font-size: 0.65rem;">CP #${t.current_checkpoint || '0'}</span></td>
-            <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(t.current_question) || 'None'}</td>
+            <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(teamName)}</td>
+            <td style="font-size: 0.85rem;">${escapeHtml(membersVal)}</td>
+            <td><span class="badge ${statusClass}" style="font-size: 0.65rem;">${displayStatus}</span></td>
+            <td><span class="badge badge-primary" style="font-size: 0.65rem;">CP #${currentCheckpoint}</span></td>
+            <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(currentQuestion)}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                ${actionButtons}
+            </td>
         `;
         tableBody.appendChild(tr);
     });
@@ -295,6 +330,8 @@ async function showQRModal(id, title) {
         if (qrUrl) {
             modalImage.src = qrUrl;
             modalImage.alt = 'QR Code';
+            modalImage.style.display = 'block';
+            modalDownload.style.display = 'inline-flex';
             
             modalDownload.href = qrUrl;
             modalDownload.download = `question_QR_${id}.png`;
@@ -687,3 +724,340 @@ function escapeHtml(text) {
     };
     return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
 }
+
+// ----------------------------------------------------
+// ADMIN TEAM MANAGEMENT SCANNING & EDIT LOGIC
+// ----------------------------------------------------
+
+let adminActiveStream = null;
+let adminScanAnimationId = null;
+let adminCurrentTeamId = null;
+let adminCurrentTeamQrId = null;
+let adminActiveTeamData = null;
+
+// Start camera stream for Admin QR scan
+async function startAdminCameraScan() {
+    const video = document.getElementById('admin-camera-video');
+    const container = document.getElementById('admin-camera-preview-container');
+    
+    container.style.display = 'block';
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        adminActiveStream = stream;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        video.play();
+        adminScanAnimationId = requestAnimationFrame(tickAdminScan);
+        Utils.showToast('Admin scanner activated.');
+    } catch (err) {
+        console.error('Camera stream access failed:', err);
+        Utils.showToast('Unable to access camera: ' + err.message);
+        stopAdminCameraScan();
+    }
+}
+
+// Stop camera scan
+function stopAdminCameraScan() {
+    const container = document.getElementById('admin-camera-preview-container');
+    container.style.display = 'none';
+
+    if (adminScanAnimationId) {
+        cancelAnimationFrame(adminScanAnimationId);
+        adminScanAnimationId = null;
+    }
+
+    if (adminActiveStream) {
+        adminActiveStream.getTracks().forEach(track => track.stop());
+        adminActiveStream = null;
+    }
+}
+
+// Frame capture loop for admin scan
+async function tickAdminScan() {
+    const video = document.getElementById('admin-camera-video');
+    const canvas = document.getElementById('qr-canvas'); // Reusing existing canvas
+    const ctx = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        let decodedCode = null;
+
+        // Try BarcodeDetector
+        if (typeof BarcodeDetector !== 'undefined') {
+            try {
+                const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+                const barcodes = await barcodeDetector.detect(canvas);
+                if (barcodes.length > 0) {
+                    decodedCode = barcodes[0].rawValue;
+                }
+            } catch (e) {
+                console.warn('BarcodeDetector error, fallback to jsQR:', e);
+            }
+        }
+
+        // Fallback to jsQR
+        if (!decodedCode) {
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+                if (code) {
+                    decodedCode = code.data;
+                }
+            } catch (e) {
+                console.error('jsQR error:', e);
+            }
+        }
+
+        if (decodedCode) {
+            console.log('Decoded admin QR:', decodedCode);
+            const scannedUuid = extractUuidForAdmin(decodedCode);
+            if (scannedUuid) {
+                stopAdminCameraScan();
+                await loadAdminTeamDetails(scannedUuid);
+                return;
+            }
+        }
+    }
+
+    if (adminActiveStream) {
+        adminScanAnimationId = requestAnimationFrame(tickAdminScan);
+    }
+}
+
+function extractUuidForAdmin(input) {
+    if (!input) return null;
+    const cleanInput = input.trim();
+
+    try {
+        if (cleanInput.startsWith('http://') || cleanInput.startsWith('https://')) {
+            const url = new URL(cleanInput);
+            const param = url.searchParams.get('qr_id') || url.searchParams.get('uid') || url.searchParams.get('id');
+            if (param) return param.trim();
+
+            const parts = url.pathname.split('/');
+            for (const part of parts) {
+                const cleanPart = part.trim();
+                if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanPart)) return cleanPart;
+            }
+
+            const lastPart = parts.pop();
+            if (lastPart) return lastPart.trim();
+        }
+    } catch (err) {}
+
+    return cleanInput;
+}
+
+// Load team details by QR UUID
+async function loadAdminTeamDetails(qrId) {
+    if (!qrId) return;
+
+    const teamCard = document.getElementById('admin-team-card');
+    Utils.showToast('Loading team coordinate details...');
+
+    try {
+        let teamData = null;
+        
+        // GET /admin/teams/qr/{qr_id}
+        try {
+            teamData = await CodeQuestAPI.getTeamByQR(qrId);
+        } catch (err) {
+            console.warn('QR endpoint failed, trying fallback to direct ID:', err);
+            if (/^\d+$/.test(qrId)) {
+                teamData = await CodeQuestAPI.getTeamById(parseInt(qrId));
+            }
+        }
+
+        // List fallback
+        if (!teamData) {
+            try {
+                const list = await CodeQuestAPI.getTeams();
+                const teams = Array.isArray(list) ? list : (list && Array.isArray(list.data) ? list.data : []);
+                teamData = teams.find(t => String(t.qr_id) === String(qrId) || String(t.id) === String(qrId));
+            } catch (listErr) {
+                console.error('List fallback lookup failed:', listErr);
+            }
+        }
+
+        if (!teamData) {
+            throw new Error('No team found for coordinates UUID.');
+        }
+
+        adminCurrentTeamId = teamData.id;
+        adminCurrentTeamQrId = qrId;
+        adminActiveTeamData = teamData;
+
+        // Populate read-only text fields
+        document.getElementById('ad-t-name').textContent = teamData.team_name || 'Unnamed Team';
+        document.getElementById('ad-t-uuid').textContent = teamData.qr_id || 'N/A';
+        document.getElementById('ad-t-members').textContent = teamData.leader_name || 'None';
+        
+        const displayStatus = mapBackendToUiStatus(teamData.status);
+        document.getElementById('ad-t-status').textContent = displayStatus;
+        
+        // Load local fields
+        const localQuestion = localStorage.getItem(`codequest_team_${teamData.id}_current_question`) || 'None';
+        const localCheckpoint = localStorage.getItem(`codequest_team_${teamData.id}_current_checkpoint`) || '0';
+        const localNotes = localStorage.getItem(`codequest_team_${teamData.id}_notes`) || '';
+        const localPenalty = localStorage.getItem(`codequest_team_${teamData.id}_penalty`) || '0';
+        const localStarted = teamData.created_at ? new Date(teamData.created_at).toLocaleString() : 'N/A';
+        const localFinished = localStorage.getItem(`codequest_team_${teamData.id}_completion_time`);
+
+        document.getElementById('ad-t-question').textContent = teamData.current_question || localQuestion;
+        document.getElementById('ad-t-checkpoint').textContent = teamData.current_checkpoint || localCheckpoint;
+        document.getElementById('ad-t-started').textContent = localStarted;
+        document.getElementById('ad-t-finished').textContent = localFinished ? new Date(localFinished).toLocaleString() : 'N/A';
+        document.getElementById('ad-t-notes-display').textContent = localNotes || 'No notes logged.';
+        document.getElementById('ad-t-penalty-display').textContent = localPenalty + ' seconds';
+
+        // Set form control values
+        document.getElementById('ad-status-select').value = displayStatus;
+        document.getElementById('ad-notes-textarea').value = localNotes;
+        document.getElementById('ad-penalty-input').value = parseInt(localPenalty) || 0;
+
+        // Populate question dropdown and set selection
+        populateQuestionsDropdown();
+        document.getElementById('ad-question-select').value = teamData.current_question || (localQuestion !== 'None' ? localQuestion : '');
+
+        // Show Team details card
+        teamCard.style.display = 'block';
+        teamCard.scrollIntoView({ behavior: 'smooth' });
+        Utils.showToast('Team coordinate loaded.');
+    } catch (error) {
+        console.error('Failed to load admin team details:', error);
+        alert('Lookup Failed: ' + error.message);
+        teamCard.style.display = 'none';
+    }
+}
+
+// Close team card
+function closeAdminTeamCard() {
+    document.getElementById('admin-team-card').style.display = 'none';
+}
+
+// Populate the Question Dropdown
+function populateQuestionsDropdown() {
+    const select = document.getElementById('ad-question-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- No Active Question / Start --</option>';
+    if (questionsList && questionsList.length > 0) {
+        questionsList.forEach(q => {
+            const option = document.createElement('option');
+            option.value = q.title;
+            option.textContent = q.title;
+            select.appendChild(option);
+        });
+    }
+}
+
+// Save Team changes
+async function saveAdminTeamChanges(event) {
+    event.preventDefault();
+    if (!adminCurrentTeamId) return;
+
+    const selectStatus = document.getElementById('ad-status-select').value;
+    const selectQuestion = document.getElementById('ad-question-select').value;
+    const notesText = document.getElementById('ad-notes-textarea').value.trim();
+    const penaltyInput = document.getElementById('ad-penalty-input').value;
+
+    const saveBtn = document.getElementById('btn-save-admin-team');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⌛ Saving Changes...';
+
+    try {
+        const mappedBackendStatus = mapUiToBackendStatus(selectStatus);
+
+        // 1. Save status to backend
+        await CodeQuestAPI.updateTeamStatus(adminCurrentTeamId, mappedBackendStatus);
+
+        // 2. Save Question, Notes, and Penalty locally (since backend endpoints are not available)
+        localStorage.setItem(`codequest_team_${adminCurrentTeamId}_notes`, notesText);
+        localStorage.setItem(`codequest_team_${adminCurrentTeamId}_penalty`, penaltyInput);
+        localStorage.setItem(`codequest_team_${adminCurrentTeamId}_current_question`, selectQuestion || 'None');
+
+        // Dynamically compute checkpoint number based on selected question index
+        if (selectQuestion) {
+            const qIndex = questionsList.findIndex(q => q.title === selectQuestion);
+            const cpVal = qIndex !== -1 ? (qIndex + 1) : 0;
+            localStorage.setItem(`codequest_team_${adminCurrentTeamId}_current_checkpoint`, cpVal);
+        } else {
+            localStorage.setItem(`codequest_team_${adminCurrentTeamId}_current_checkpoint`, 0);
+        }
+
+        // Completion time management
+        const timeKey = `codequest_team_${adminCurrentTeamId}_completion_time`;
+        if (selectStatus === 'Completed') {
+            const savedTime = localStorage.getItem(timeKey);
+            if (!savedTime) {
+                localStorage.setItem(timeKey, new Date().toISOString());
+            }
+        } else {
+            localStorage.removeItem(timeKey);
+        }
+
+        // Reload data
+        await loadAdminTeamDetails(adminCurrentTeamQrId);
+        await loadTeamsList();
+        Utils.showToast('Team changes saved successfully.');
+    } catch (err) {
+        console.error('Failed to save team details:', err);
+        alert('Save Failed: ' + err.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    }
+}
+
+// Status Mappings
+function mapBackendToUiStatus(backendStatus) {
+    if (!backendStatus) return 'Ongoing';
+    const status = backendStatus.toLowerCase();
+    if (status === 'winner') return 'Completed';
+    if (status === 'disqualified' || status === 'rejected') return 'Disqualified';
+    return 'Ongoing';
+}
+
+function mapUiToBackendStatus(uiStatus) {
+    if (uiStatus === 'Completed') return 'winner';
+    if (uiStatus === 'Disqualified') return 'disqualified';
+    return 'registered';
+}
+
+// Show Team QR in Modal
+function showTeamQRModal(teamName, qrId, qrUrl) {
+    const modalImage = document.getElementById('qr-modal-image');
+    const modalId = document.getElementById('qr-modal-id');
+    const modalDownload = document.getElementById('qr-modal-download');
+    
+    document.getElementById('qr-modal-title').textContent = `${teamName} • Team QR`;
+    
+    if (qrUrl) {
+        const fullUrl = CodeQuestAPI.BASE_URL + qrUrl;
+        modalImage.src = fullUrl;
+        modalImage.alt = 'Team QR Code';
+        modalImage.style.display = 'block';
+        modalId.innerHTML = `UUID: ${escapeHtml(qrId)}`;
+        
+        modalDownload.href = fullUrl;
+        modalDownload.download = `team_${teamName.replace(/\s+/g, '_')}_QR.png`;
+        modalDownload.style.display = 'inline-flex';
+    } else {
+        modalImage.style.display = 'none';
+        modalId.innerHTML = `<div style="color: var(--error); font-weight: 700; padding: 1.5rem 0;">QR not generated yet.</div><div style="margin-top: 0.25rem;">UUID: ${escapeHtml(qrId)}</div>`;
+        
+        modalDownload.href = '#';
+        modalDownload.style.display = 'none';
+    }
+    
+    Utils.openModal('qr-modal');
+}
+
+

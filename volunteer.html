@@ -8,22 +8,23 @@
     <link rel="stylesheet" href="css/components.css">
     <style>
         .panel-container {
-            max-width: 720px;
+            max-width: 500px;
             width: 100%;
-            margin: 1.5rem auto;
+            margin: 1rem auto;
+            padding: 0 0.75rem;
         }
 
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             border-bottom: 1px solid var(--border);
-            padding-bottom: 1rem;
+            padding-bottom: 0.75rem;
         }
 
         .portal-title {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 800;
             color: var(--primary);
             text-transform: uppercase;
@@ -34,50 +35,74 @@
             color: var(--accent);
         }
 
-        .team-detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+        .btn-large {
+            padding: 1.25rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: var(--radius);
+        }
+
+        .select-large {
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: var(--radius);
+            height: auto;
+        }
+
+        .textarea-large {
+            padding: 1rem;
+            font-size: 1rem;
+            border-radius: var(--radius);
+            min-height: 100px;
+        }
+
+        /* Single Team Card Layout */
+        .team-detail-list {
             margin-top: 1rem;
             margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
-        @media (max-width: 576px) {
-            .team-detail-grid {
-                grid-template-columns: 1fr;
-            }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
         }
 
-        .detail-item {
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 0.75rem 1rem;
+        .detail-row:last-child {
+            border-bottom: none;
         }
 
         .detail-label {
-            font-size: 0.7rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
+            font-weight: 600;
             text-transform: uppercase;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
         }
 
         .detail-value {
-            font-weight: 600;
+            font-size: 0.95rem;
+            font-weight: 700;
             color: var(--text-main);
-            word-break: break-all;
+            text-align: right;
+            max-width: 65%;
+            word-wrap: break-word;
         }
 
-        /* QR Scanner Camera Overlay */
+        /* QR Scanner Video Overlay */
         #camera-preview-container {
             display: none;
             position: relative;
             width: 100%;
-            max-height: 300px;
+            max-height: 320px;
             border-radius: var(--radius);
             overflow: hidden;
-            border: 2px solid var(--primary);
+            border: 3px solid var(--primary);
             margin-bottom: 1.5rem;
             background-color: #000;
         }
@@ -85,7 +110,7 @@
         #camera-video {
             width: 100%;
             height: auto;
-            max-height: 300px;
+            max-height: 320px;
             display: block;
             object-fit: cover;
         }
@@ -95,15 +120,25 @@
             top: 50%;
             left: 0;
             width: 100%;
-            height: 2px;
+            height: 3px;
             background-color: var(--error);
-            box-shadow: 0 0 8px var(--error);
+            box-shadow: 0 0 10px var(--error);
             animation: laser-sweep 2s infinite ease-in-out;
         }
 
         @keyframes laser-sweep {
-            0%, 100% { top: 10%; }
-            50% { top: 90%; }
+            0%, 100% { top: 15%; }
+            50% { top: 85%; }
+        }
+
+        .api-note {
+            background-color: rgba(59, 130, 246, 0.06);
+            border-left: 3px solid var(--info);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            color: #1e3a8a;
+            margin-top: 1rem;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -114,111 +149,102 @@
             <!-- Header panel -->
             <div class="panel-header">
                 <div>
-                    <h1 class="portal-title">CODE<span>QUEST</span> • Volunteer Portal</h1>
-                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Monitor and update active team coordinates</p>
+                    <h1 class="portal-title">CODE<span>QUEST</span> • Volunteer</h1>
+                    <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Manage Team Progress</p>
                 </div>
-                <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Back to Hub</a>
+                <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Exit</a>
             </div>
 
-            <!-- QR scan / entry card -->
-            <div class="card" style="border-top: 4px solid var(--primary); margin-bottom: 2rem;">
+            <!-- Scanner Controls -->
+            <div class="card" style="border-top: 4px solid var(--primary); margin-bottom: 1.5rem;">
                 <h3 style="margin-bottom: 0.5rem; color: var(--primary);">Scan Team QR</h3>
-                <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
-                    Scan the team coordinates QR code using your camera to view details and log checkpoint progress.
+                <p style="margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+                    Click the button to scan a team QR code.
                 </p>
 
-                <!-- Camera stream for active scanning -->
+                <!-- Camera preview for scanning -->
                 <div id="camera-preview-container">
                     <video id="camera-video" playsinline></video>
                     <div class="scanner-overlay-laser"></div>
-                    <button class="btn btn-danger btn-sm" onclick="stopCameraScan()" style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">
-                        Stop Scanner
+                    <button type="button" class="btn btn-danger btn-sm" onclick="stopCameraScan()" style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">
+                        Close Camera
                     </button>
                 </div>
 
                 <div style="text-align: center;">
-                    <!-- Scan Button -->
-                    <button type="button" class="btn btn-primary" onclick="startCameraScan()" id="btn-start-scan" style="width: 100%; max-width: 320px; margin: 0 auto;">
-                        📷 Scan Team QR
+                    <!-- Large Scan Button -->
+                    <button type="button" class="btn btn-primary btn-large" onclick="startCameraScan()" id="btn-start-scan" style="width: 100%;">
+                        📷 SCAN TEAM QR
                     </button>
                 </div>
             </div>
 
-            <!-- Team details card (initially hidden) -->
+            <!-- Single Team Card -->
             <div class="card" id="team-card" style="display: none; border-top: 4px solid var(--accent); padding-bottom: 1.5rem;">
-                <h3 style="margin-bottom: 1rem; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
-                    <span>Team Details</span>
-                    <span id="team-status-badge" class="badge">Ongoing</span>
+                <h3 style="color: var(--text-main); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                    Team Information
                 </h3>
 
-                <div class="team-detail-grid">
-                    <div class="detail-item">
+                <div class="team-detail-list">
+                    <div class="detail-row">
                         <div class="detail-label">Team Name</div>
                         <div class="detail-value" id="t-name">-</div>
                     </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Team ID</div>
-                        <div class="detail-value" id="t-id">-</div>
-                    </div>
-                    <div class="detail-item" style="grid-column: 1 / -1;">
+                    <div class="detail-row">
                         <div class="detail-label">Members</div>
                         <div class="detail-value" id="t-members">-</div>
                     </div>
-                    <div class="detail-item">
+                    <div class="detail-row">
+                        <div class="detail-label">Current Question</div>
+                        <div class="detail-value" id="t-current-question">-</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Current Checkpoint</div>
+                        <div class="detail-value" id="t-current-checkpoint">0</div>
+                    </div>
+                    <div class="detail-row">
                         <div class="detail-label">Current Status</div>
-                        <div class="detail-value" id="t-status">-</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Completed Checkpoints</div>
-                        <div class="detail-value" id="t-completed-checkpoints">0</div>
-                    </div>
-                    <div class="detail-item" style="grid-column: 1 / -1;">
-                        <div class="detail-label">Completion History</div>
-                        <div class="detail-value" id="t-completion-history" style="max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; padding: 0.25rem 0;">
-                            <div style="color: var(--text-muted);">No history logged yet.</div>
-                        </div>
+                        <div class="detail-value"><span id="team-status-badge" class="badge badge-neutral">Ongoing</span></div>
                     </div>
                 </div>
 
-                <!-- Record Checkpoint Completion -->
-                <div style="border-top: 1px dashed var(--border); padding-top: 1.5rem; margin-top: 1.5rem;">
-                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Record Progress</h4>
-                    
-                    <div class="form-group" style="margin-bottom: 1.25rem;">
-                        <label for="checkpoint-name" class="form-label">Question / Checkpoint</label>
-                        <input type="text" id="checkpoint-name" class="form-control" placeholder="e.g. Reverse Coding - Q1" required>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label class="switch-group" style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none;">
-                            <input type="checkbox" id="checkpoint-completed" style="width: 1.3rem; height: 1.3rem; cursor: pointer; accent-color: var(--success);">
-                            <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">☑ Checkpoint Completed</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Update Status Form -->
-                <div style="border-top: 1px dashed var(--border); padding-top: 1.5rem;">
-                    <form onsubmit="handleStatusUpdate(event)">
-                        <div class="form-group">
-                            <label for="team-status-select" class="form-label">Team Status</label>
-                            <select id="team-status-select" class="form-control" required style="max-width: 250px;">
+                <!-- Editable Controls -->
+                <div style="border-top: 2px dashed var(--border); padding-top: 1.25rem; margin-top: 0.5rem;">
+                    <form onsubmit="saveTeamProgress(event)">
+                        
+                        <!-- Status Dropdown -->
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="team-status-select" class="form-label">Status Dropdown</label>
+                            <select id="team-status-select" class="form-control select-large" required>
                                 <option value="Ongoing">Ongoing</option>
                                 <option value="Completed">Completed</option>
                                 <option value="Disqualified">Disqualified</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary" id="btn-update-status" style="margin-top: 1rem; width: auto; padding: 0.5rem 1.5rem; font-size: 0.85rem;">
-                            Save Status
+
+                        <!-- Checkpoint Notes -->
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <label for="checkpoint-notes" class="form-label">Checkpoint Notes</label>
+                            <textarea id="checkpoint-notes" class="form-control textarea-large" placeholder="e.g. Solved Question 4, Checkpoint Cleared, Puzzle Completed..."></textarea>
+                        </div>
+
+                        <!-- Large Save Button -->
+                        <button type="submit" class="btn btn-accent btn-large" id="btn-save-progress" style="width: 100%;">
+                            💾 SAVE
                         </button>
                     </form>
                 </div>
+
+                <!-- Info Note -->
+                <div class="api-note">
+                    Note: Status updates are sent directly to the backend. Checkpoint logs and notes are saved locally as those endpoints are not present in the current API spec.
+                </div>
             </div>
 
-            <!-- Footer branding -->
-            <div class="text-center" style="margin-top: 4rem; padding-bottom: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
-                <p style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted);">
-                    Code Quest 2026 • Security Protocol Active
+            <!-- Footer -->
+            <div class="text-center" style="margin-top: 3rem; padding-bottom: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted);">
+                    Code Quest 2026 • Volunteer Panel
                 </p>
             </div>
 

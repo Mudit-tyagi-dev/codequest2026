@@ -4,13 +4,12 @@ let currentTeamId = null;
 let currentTeamQrId = null;
 let activeTeamData = null;
 
-// Start camera stream and begin frame processing
+// Start camera stream for QR scanning
 async function startCameraScan() {
     const video = document.getElementById('camera-video');
     const container = document.getElementById('camera-preview-container');
     const btnStart = document.getElementById('btn-start-scan');
 
-    // Show scanner overlay
     container.style.display = 'block';
     btnStart.disabled = true;
 
@@ -18,49 +17,18 @@ async function startCameraScan() {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         activeStream = stream;
         video.srcObject = stream;
-        video.setAttribute('playsinline', true); // Required for iOS
+        video.setAttribute('playsinline', true);
         video.play();
         scanAnimationId = requestAnimationFrame(tickScan);
+        Utils.showToast('Camera scanner started.');
     } catch (err) {
-        console.error('Camera stream access failed:', err);
+        console.error('Camera access failed:', err);
         Utils.showToast('Unable to access camera: ' + err.message);
         stopCameraScan();
     }
 }
 
-// Draw video frame to canvas and attempt QR parsing
-function tickScan() {
-    const video = document.getElementById('camera-video');
-    const canvas = document.getElementById('qr-canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-        });
-
-        if (code) {
-            console.log('QR Code detected:', code.data);
-            const scannedUuid = extractUuid(code.data);
-            if (scannedUuid) {
-                stopCameraScan();
-                loadTeamDetails(scannedUuid);
-                return;
-            }
-        }
-    }
-    
-    if (activeStream) {
-        scanAnimationId = requestAnimationFrame(tickScan);
-    }
-}
-
-// Stop camera and cleanup animation frame loops
+// Stop camera stream
 function stopCameraScan() {
     const container = document.getElementById('camera-preview-container');
     const btnStart = document.getElementById('btn-start-scan');
@@ -79,33 +47,97 @@ function stopCameraScan() {
     }
 }
 
-// Extract UUID from QR code URL or raw input
-function extractUuid(input) {
-    if (!input) return null;
-    
-    // Check if it's a URL and extract coordinates or uid parameters
-    try {
-        if (input.startsWith('http://') || input.startsWith('https://')) {
-            const url = new URL(input);
-            return url.searchParams.get('uid') || url.searchParams.get('qr_id') || url.pathname.split('/').pop();
+// Process QR frames
+async function tickScan() {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        let decodedCode = null;
+
+        // Try BarcodeDetector
+        if (typeof BarcodeDetector !== 'undefined') {
+            try {
+                const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+                const barcodes = await barcodeDetector.detect(canvas);
+                if (barcodes.length > 0) {
+                    decodedCode = barcodes[0].rawValue;
+                }
+            } catch (e) {
+                console.warn('BarcodeDetector error, falling back to jsQR:', e);
+            }
         }
-    } catch (e) {
-        // Ignore URL parsing failure and treat as raw ID
-    }
-    
-    // Raw UUID format validation (simple regex check)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const cleanInput = input.trim();
-    if (uuidRegex.test(cleanInput)) {
-        return cleanInput;
-    }
-    
-    // Return input if it matches integer ID as a fallback
-    if (/^\d+$/.test(cleanInput)) {
-        return cleanInput;
+
+        // Fallback to jsQR
+        if (!decodedCode) {
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+                if (code) {
+                    decodedCode = code.data;
+                }
+            } catch (e) {
+                console.error('jsQR error:', e);
+            }
+        }
+
+        if (decodedCode) {
+            console.log('Scanned QR:', decodedCode);
+            const scannedUuid = extractUuid(decodedCode);
+            if (scannedUuid) {
+                stopCameraScan();
+                await loadTeamDetails(scannedUuid);
+                return;
+            }
+        }
     }
 
-    return cleanInput; // Fallback
+    if (activeStream) {
+        scanAnimationId = requestAnimationFrame(tickScan);
+    }
+}
+
+// Robust UUID extractor
+function extractUuid(input) {
+    if (!input) return null;
+    const cleanInput = input.trim();
+
+    try {
+        if (cleanInput.startsWith('http://') || cleanInput.startsWith('https://')) {
+            const url = new URL(cleanInput);
+            
+            // Check query string parameters
+            const param = url.searchParams.get('qr_id') || url.searchParams.get('uid') || url.searchParams.get('id');
+            if (param) return param.trim();
+
+            // Check path parts
+            const parts = url.pathname.split('/');
+            for (const part of parts) {
+                const cleanPart = part.trim();
+                if (isUuid(cleanPart)) return cleanPart;
+            }
+
+            const lastPart = parts.pop();
+            if (lastPart) return lastPart.trim();
+        }
+    } catch (err) {
+        // Ignore URL parsing errors
+    }
+
+    if (isUuid(cleanInput)) return cleanInput;
+    return cleanInput;
+}
+
+function isUuid(str) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
 }
 
 // Load team details by QR UUID
@@ -113,267 +145,157 @@ async function loadTeamDetails(qrId) {
     if (!qrId) return;
 
     const teamCard = document.getElementById('team-card');
-    const btnLoad = document.getElementById('btn-load-team');
-    const originalText = btnLoad ? btnLoad.innerHTML : '';
-
-    if (btnLoad) {
-        btnLoad.disabled = true;
-        btnLoad.innerHTML = '⌛ Loading Team Details...';
-    }
+    Utils.showToast('Loading team details...');
 
     try {
-        // Query the live Team QR API: GET /admin/teams/qr/{qr_id}
-        // If it fails or returns 404, we'll try GET /admin/teams/{id} in case they scanned direct ID.
-        // If both direct calls fail, we fallback to searching the full list of teams from GET /admin/teams/.
         let teamData = null;
+        
+        // Call GET /admin/teams/qr/{qr_id}
         try {
             teamData = await CodeQuestAPI.getTeamByQR(qrId);
         } catch (err) {
-            console.warn('QR lookup failed, trying direct ID lookup:', err);
-            try {
-                if (/^\d+$/.test(qrId)) {
-                    teamData = await CodeQuestAPI.getTeamById(parseInt(qrId));
-                }
-            } catch (idErr) {
-                console.warn('ID lookup failed, trying list fallback:', idErr);
+            console.warn('QR lookup failed, trying fallback direct ID:', err);
+            if (/^\d+$/.test(qrId)) {
+                teamData = await CodeQuestAPI.getTeamById(parseInt(qrId));
             }
         }
 
+        // List fallback
         if (!teamData) {
             try {
-                const teamsList = await CodeQuestAPI.getTeams();
-                const list = Array.isArray(teamsList) ? teamsList : (teamsList && Array.isArray(teamsList.data) ? teamsList.data : []);
-                teamData = list.find(t => String(t.id) === String(qrId) || String(t.qr_id) === String(qrId) || String(t.qr_code) === String(qrId));
+                const list = await CodeQuestAPI.getTeams();
+                const teams = Array.isArray(list) ? list : (list && Array.isArray(list.data) ? list.data : []);
+                teamData = teams.find(t => String(t.qr_id) === String(qrId) || String(t.id) === String(qrId));
             } catch (listErr) {
-                console.error('List fallback failed:', listErr);
+                console.error('List fallback lookup failed:', listErr);
             }
         }
 
         if (!teamData) {
-            throw new Error('No team matching this checkpoint coordinate is active.');
+            throw new Error('No team found for the scanned QR.');
         }
 
-        // Parse and display values
         currentTeamId = teamData.id;
         currentTeamQrId = qrId;
         activeTeamData = teamData;
 
-        document.getElementById('t-name').textContent = teamData.name || 'N/A';
-        document.getElementById('t-id').textContent = teamData.id || 'N/A';
-        document.getElementById('t-members').textContent = Array.isArray(teamData.members) 
-            ? teamData.members.join(', ') 
-            : (teamData.members || 'None');
-        document.getElementById('t-status').textContent = teamData.status || 'Ongoing';
+        // Display Team Information: Team Name, Members, Current Question, Current Checkpoint, Current Status
+        document.getElementById('t-name').textContent = teamData.team_name || 'Unnamed Team';
+        document.getElementById('t-members').textContent = teamData.leader_name || 'None';
 
-        // Count completed checkpoints
-        let compCount = 0;
-        if (teamData.completed_checkpoints) {
-            compCount = teamData.completed_checkpoints.length;
-        } else if (teamData.current_checkpoint) {
-            compCount = parseInt(teamData.current_checkpoint) || 0;
-        }
-        document.getElementById('t-completed-checkpoints').textContent = compCount;
+        // Load local storage values for missing API fields (Current Question, Current Checkpoint, and Notes)
+        const localQuestion = localStorage.getItem(`codequest_team_${teamData.id}_current_question`) || 'None';
+        const localCheckpoint = localStorage.getItem(`codequest_team_${teamData.id}_current_checkpoint`) || '0';
+        const localNotes = localStorage.getItem(`codequest_team_${teamData.id}_notes`) || '';
 
-        // Render completion history list
-        renderCompletionHistory(teamData);
+        document.getElementById('t-current-question').textContent = teamData.current_question || localQuestion;
+        document.getElementById('t-current-checkpoint').textContent = teamData.current_checkpoint || localCheckpoint;
+        document.getElementById('checkpoint-notes').value = localNotes;
 
-        // Reset the checkpoint input form
-        document.getElementById('checkpoint-name').value = '';
-        document.getElementById('checkpoint-completed').checked = false;
+        // Status Badge & Dropdown Mapping
+        const displayStatus = mapBackendToUiStatus(teamData.status);
+        document.getElementById('team-status-select').value = displayStatus;
+        updateStatusBadge(displayStatus);
 
-        // Set status dropdown and status badge
-        const status = teamData.status || 'Ongoing';
-        document.getElementById('team-status-select').value = status;
-        updateStatusBadge(status);
-
+        // Show Team details card
         teamCard.style.display = 'block';
         teamCard.scrollIntoView({ behavior: 'smooth' });
-        Utils.showToast('Team coordinates decrypted successfully.');
+        Utils.showToast('Team coordinates decrypted.');
     } catch (error) {
-        console.error('Failed to resolve team coordinates:', error);
+        console.error('Failed to load team details:', error);
         alert('Lookup Failed: ' + error.message);
         teamCard.style.display = 'none';
-    } finally {
-        if (btnLoad) {
-            btnLoad.disabled = false;
-            btnLoad.innerHTML = originalText;
-        }
     }
 }
 
-// Update the team status badge styling
+// Status Mappings
+function mapBackendToUiStatus(backendStatus) {
+    if (!backendStatus) return 'Ongoing';
+    const status = backendStatus.toLowerCase();
+    if (status === 'winner') return 'Completed';
+    if (status === 'disqualified' || status === 'rejected') return 'Disqualified';
+    return 'Ongoing';
+}
+
+function mapUiToBackendStatus(uiStatus) {
+    if (uiStatus === 'Completed') return 'winner';
+    if (uiStatus === 'Disqualified') return 'disqualified';
+    return 'registered'; // maps Ongoing to registered
+}
+
 function updateStatusBadge(status) {
     const badge = document.getElementById('team-status-badge');
     badge.textContent = status;
-    
-    // Clear all status classes
-    badge.className = 'badge';
-    
+    badge.className = 'badge'; // reset
+
     if (status === 'Completed') {
         badge.classList.add('badge-success');
     } else if (status === 'Disqualified') {
         badge.classList.add('badge-danger');
     } else {
         badge.classList.add('badge-accent');
-        badge.style.color = '#1e293b';
     }
 }
 
-// Render dynamic completion history list
-function renderCompletionHistory(teamData) {
-    const historyContainer = document.getElementById('t-completion-history');
-    if (!historyContainer) return;
-
-    if (teamData && teamData.completion_history && teamData.completion_history.length > 0) {
-        // Sort history by timestamp descending (newest first)
-        const sortedHistory = [...teamData.completion_history].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        historyContainer.innerHTML = sortedHistory.map(item => {
-            const timeString = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            return `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 0.35rem 0;">
-                <span style="font-weight: 600; color: var(--text-main);">${escapeHtml(item.name)}</span>
-                <span style="color: var(--text-muted); font-size: 0.8rem;">⏱ ${timeString}</span>
-            </div>`;
-        }).join('');
-    } else if (teamData && teamData.completed_checkpoints && teamData.completed_checkpoints.length > 0) {
-        // Fallback for simple string lists
-        historyContainer.innerHTML = teamData.completed_checkpoints.map(cpName => {
-            return `<div style="border-bottom: 1px solid var(--border); padding: 0.35rem 0;">
-                <span style="font-weight: 600; color: var(--text-main);">${escapeHtml(cpName)}</span>
-            </div>`;
-        }).join('');
-    } else {
-        historyContainer.innerHTML = `<div style="color: var(--text-muted);">No history logged yet.</div>`;
-    }
-}
-
-// Handle Checkpoint Completed Checkbox Change
-async function handleCheckpointCompleted(event) {
-    const isChecked = event.target.checked;
-    if (!isChecked) return; // Only process save on check
-
-    if (!currentTeamId) {
-        alert('Please scan a team QR code first.');
-        event.target.checked = false;
-        return;
-    }
-
-    const checkpointNameInput = document.getElementById('checkpoint-name');
-    const checkpointName = checkpointNameInput.value.trim();
-    if (!checkpointName) {
-        alert('Please enter a Question / Checkpoint name first.');
-        event.target.checked = false;
-        return;
-    }
-
-    const timestamp = new Date().toISOString();
-    
-    if (!activeTeamData) {
-        activeTeamData = {};
-    }
-    if (!activeTeamData.completed_checkpoints) {
-        activeTeamData.completed_checkpoints = [];
-    }
-    
-    let compCount = activeTeamData.completed_checkpoints.length;
-    if (!activeTeamData.completed_checkpoints.includes(checkpointName)) {
-        activeTeamData.completed_checkpoints.push(checkpointName);
-        compCount += 1;
-    }
-
-    if (!activeTeamData.completion_history) {
-        activeTeamData.completion_history = [];
-    }
-    activeTeamData.completion_history.push({
-        name: checkpointName,
-        timestamp: timestamp
-    });
-
-    const payload = {
-        current_question: checkpointName,
-        current_checkpoint: compCount,
-        completed_checkpoints: activeTeamData.completed_checkpoints,
-        completion_history: activeTeamData.completion_history
-    };
-
-    const compCheckbox = event.target;
-    compCheckbox.disabled = true;
-
-    try {
-        try {
-            await CodeQuestAPI.updateTeam(currentTeamId, payload);
-        } catch (apiErr) {
-            console.warn('Backend API update failed, logging locally:', apiErr);
-        }
-
-        // Locally update elements
-        document.getElementById('t-completed-checkpoints').textContent = compCount;
-        renderCompletionHistory(activeTeamData);
-
-        // Reset elements
-        checkpointNameInput.value = '';
-        compCheckbox.checked = false;
-
-        Utils.showToast(`Checkpoint "${checkpointName}" saved successfully.`);
-    } catch (error) {
-        console.error('Failed to log checkpoint:', error);
-        alert('Failed to log checkpoint: ' + error.message);
-        compCheckbox.checked = false;
-    } finally {
-        compCheckbox.disabled = false;
-    }
-}
-
-// Submit status update to backend API
-async function handleStatusUpdate(event) {
+// Save team progress
+async function saveTeamProgress(event) {
     event.preventDefault();
-    if (!currentTeamId) return;
+    if (!currentTeamId) {
+        alert('No team loaded.');
+        return;
+    }
 
-    const select = document.getElementById('team-status-select');
-    const newStatus = select.value;
-    const btnUpdate = document.getElementById('btn-update-status');
-    const originalText = btnUpdate.innerHTML;
+    const selectStatus = document.getElementById('team-status-select').value;
+    const notesText = document.getElementById('checkpoint-notes').value.trim();
 
-    btnUpdate.disabled = true;
-    btnUpdate.innerHTML = '⌛ Updating Status...';
+    const saveButton = document.getElementById('btn-save-progress');
+    const originalText = saveButton.innerHTML;
+
+    saveButton.disabled = true;
+    saveButton.innerHTML = '⌛ Saving Progress...';
 
     try {
-        try {
-            await CodeQuestAPI.updateTeamStatus(currentTeamId, newStatus);
-        } catch (apiErr) {
-            console.warn('API returned error (handling locally):', apiErr);
+        const mappedBackendStatus = mapUiToBackendStatus(selectStatus);
+
+        // 1. Update status on backend
+        await CodeQuestAPI.updateTeamStatus(currentTeamId, mappedBackendStatus);
+
+        // 2. Save notes and parse updates locally (since backend endpoints are not available yet)
+        localStorage.setItem(`codequest_team_${currentTeamId}_notes`, notesText);
+
+        if (notesText) {
+            // Simple parsing to extract current question (e.g. "Solved Question 4" -> Question 4)
+            const questionMatch = notesText.match(/question\s*(\d+)/i) || notesText.match(/q\s*(\d+)/i);
+            if (questionMatch) {
+                localStorage.setItem(`codequest_team_${currentTeamId}_current_question`, 'Question ' + questionMatch[1]);
+            }
+
+            // Simple parsing to extract current checkpoint (e.g. "Checkpoint 3" -> 3)
+            const checkpointMatch = notesText.match(/checkpoint\s*(\d+)/i);
+            if (checkpointMatch) {
+                localStorage.setItem(`codequest_team_${currentTeamId}_current_checkpoint`, checkpointMatch[1]);
+            } else {
+                // Increment checkpoint count if notes updated but no number is provided
+                const oldNotes = localStorage.getItem(`codequest_team_${currentTeamId}_notes_history`) || '';
+                if (notesText !== oldNotes) {
+                    const currentVal = parseInt(localStorage.getItem(`codequest_team_${currentTeamId}_current_checkpoint`) || '0');
+                    localStorage.setItem(`codequest_team_${currentTeamId}_current_checkpoint`, currentVal + 1);
+                    localStorage.setItem(`codequest_team_${currentTeamId}_notes_history`, notesText);
+                }
+            }
         }
 
-        // Locally update status elements to confirm UI action
-        document.getElementById('t-status').textContent = newStatus;
-        updateStatusBadge(newStatus);
-        Utils.showToast(`Team status successfully updated to: ${newStatus}`);
-    } catch (error) {
-        console.error('Error updating status:', error);
-        alert('Update Failed: ' + error.message);
+        // Reload UI fields
+        await loadTeamDetails(currentTeamQrId);
+        Utils.showToast('Progress saved successfully.');
+    } catch (err) {
+        console.error('Error saving progress:', err);
+        alert('Save Failed: ' + err.message);
     } finally {
-        btnUpdate.disabled = false;
-        btnUpdate.innerHTML = originalText;
+        saveButton.disabled = false;
+        saveButton.innerHTML = originalText;
     }
 }
 
-// Escape HTML utility helper
-function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
-// Initialize Checkbox listeners
-document.addEventListener('DOMContentLoaded', () => {
-    const compCheckbox = document.getElementById('checkpoint-completed');
-    if (compCheckbox) {
-        compCheckbox.addEventListener('change', handleCheckpointCompleted);
-    }
-});
+// Global hook for mock/console scanning
+window.loadTeamDetails = loadTeamDetails;
