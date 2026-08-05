@@ -52,7 +52,7 @@ async function loadQuestion() {
     let question = null;
     try {
       if (questionId) {
-        question = await CodeQuestAPI.getQuestionById(questionId);
+        question = await CodeQuestAPI.getQuestion(questionId);
       } else if (questionUid) {
         question = await CodeQuestAPI.getQuestionByQR(questionUid);
       }

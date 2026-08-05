@@ -36,7 +36,9 @@ async function handleResponse(response) {
     }
     
     try {
-        return await response.json();
+        const data = await response.json();
+        console.log("Raw API Response:", data);
+        return data;
     } catch (e) {
         return {};
     }
@@ -57,6 +59,8 @@ async function request(path, options = {}) {
     
     try {
         const response = await fetch(url, requestOptions);
+        console.log("Request URL:", url);
+        console.log("Status:", response.status);
         return await handleResponse(response);
     } catch (error) {
         console.error(`API Request to ${url} failed:`, error);
@@ -69,7 +73,9 @@ const CodeQuestAPI = {
     // Admin Questions
     async getQuestions() {
         try {
-            return await request('/admin/questions/');
+            const questions = await request('/admin/questions/');
+            console.log("Questions from API:", questions);
+            return questions;
         } catch (error) {
             if (error.message === 'Question not found') {
                 return []; // Return empty array if no questions exist yet
@@ -85,7 +91,7 @@ const CodeQuestAPI = {
         });
     },
     
-    async getQuestionById(id) {
+    async getQuestion(id) {
         return await request(`/admin/questions/${id}`);
     },
     

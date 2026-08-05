@@ -28,67 +28,76 @@ async function loadQuestionsList() {
     tableBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 2rem;">⌛ Loading questions...</td></tr>`;
 
     try {
-        const responseData = await CodeQuestAPI.getQuestions();
-        let questions = [];
-        if (Array.isArray(responseData)) {
-            questions = responseData;
-        } else if (responseData) {
-            if (Array.isArray(responseData.data)) {
-                questions = responseData.data;
-            } else if (Array.isArray(responseData.questions)) {
-                questions = responseData.questions;
-            } else if (Array.isArray(responseData.items)) {
-                questions = responseData.items;
+        const questions = await CodeQuestAPI.getQuestions();
+        console.log("Questions received by admin.js:", questions);
+
+        let questionsArray = [];
+        if (Array.isArray(questions)) {
+            questionsArray = questions;
+        } else if (questions) {
+            if (Array.isArray(questions.questions)) {
+                questionsArray = questions.questions;
+            } else if (Array.isArray(questions.data)) {
+                questionsArray = questions.data;
+            } else if (Array.isArray(questions.items)) {
+                questionsArray = questions.items;
             }
         }
 
-        console.log("Questions:", questions);
-
-        questionsList = questions;
+        console.log("Parsed Questions:", questionsArray);
+        questionsList = questionsArray;
         populateQuestionsDropdown();
-        tableBody.innerHTML = '';
-
-        if (questions && questions.length > 0) {
-            questions.forEach(q => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(q.title)}</td>
-                    <td><span class="badge badge-primary" style="font-size: 0.65rem; text-transform: capitalize;">${q.question_type}</span></td>
-                    <td><span class="badge badge-accent" style="font-size: 0.65rem; color: #1e293b;">${q.points} Pts</span></td>
-                    <td>
-                        <span class="badge ${q.is_active ? 'badge-success' : 'badge-neutral'}" style="font-size: 0.65rem;">
-                            ${q.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </td>
-                    <td style="text-align: center;">
-                        <button class="btn btn-secondary btn-sm" onclick="showQRModal(${q.id}, '${escapeHtml(q.title)}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm);">
-                            🔍 View QR
-                        </button>
-                    </td>
-                    <td style="text-align: right; white-space: nowrap;">
-                        <button class="btn btn-secondary btn-sm" onclick="previewQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm); margin-right: 0.25rem;">👁 Preview</button>
-                        <button class="btn btn-secondary btn-sm" onclick="editQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm); margin-right: 0.25rem; border-color: var(--info); color: var(--info);">✏️ Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm);">🗑 Delete</button>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
-            });
-        } else {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center" style="padding: 3rem;">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
-                        <h4 style="color: var(--text-muted);">No Questions Found</h4>
-                    </td>
-                </tr>
-            `;
-        }
+        
+        console.log("Rendering Questions:", questionsArray);
+        renderQuestions(questionsArray);
     } catch (error) {
         console.error('Failed to load questions:', error);
         tableBody.innerHTML = `
             <tr>
                 <td colspan="6" class="text-center" style="padding: 2rem; color: var(--error);">
                     Failed to retrieve questions. <span style="text-decoration: underline; cursor: pointer; font-weight: bold;" onclick="loadQuestionsList()">Retry</span>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function renderQuestions(questions) {
+    console.log("renderQuestions input:", questions);
+    const tableBody = document.getElementById('questions-table-body');
+    tableBody.innerHTML = '';
+
+    if (questions && questions.length > 0) {
+        questions.forEach(q => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(q.title)}</td>
+                <td><span class="badge badge-primary" style="font-size: 0.65rem; text-transform: capitalize;">${q.question_type}</span></td>
+                <td><span class="badge badge-accent" style="font-size: 0.65rem; color: #1e293b;">${q.points} Pts</span></td>
+                <td>
+                    <span class="badge ${q.is_active ? 'badge-success' : 'badge-neutral'}" style="font-size: 0.65rem;">
+                        ${q.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm" onclick="showQRModal(${q.id}, '${escapeHtml(q.title)}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; border-radius: var(--radius-sm);">
+                        🔍 View QR
+                    </button>
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="previewQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm); margin-right: 0.25rem;">👁 Preview</button>
+                    <button class="btn btn-secondary btn-sm" onclick="editQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm); margin-right: 0.25rem; border-color: var(--info); color: var(--info);">✏️ Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: var(--radius-sm);">🗑 Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    } else {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center" style="padding: 3rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
+                    <h4 style="color: var(--text-muted);">No Questions Found</h4>
                 </td>
             </tr>
         `;
@@ -240,7 +249,7 @@ function renderTeams(teams) {
 // CRUD: Edit Question
 async function editQuestion(id) {
     try {
-        const q = await CodeQuestAPI.getQuestionById(id);
+        const q = await CodeQuestAPI.getQuestion(id);
         if (!q) throw new Error('Question data not found.');
 
         openCreateModal(true);
