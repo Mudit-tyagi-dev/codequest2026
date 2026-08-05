@@ -165,19 +165,13 @@ function renderQuestion(q) {
 
   mainContent.innerHTML = `
         <div class="card">
-            <!-- Header metadata -->
-            <div class="mission-header">
-                <div>
-                    <div class="mission-title">Mission Protocol</div>
-                    <div class="mission-sub">${escapeHtml(q.title)}</div>
-                </div>
-                <div class="badge badge-primary">${q.points} Points</div>
-            </div>
-            
-            <div class="meta-row">
-                <span class="badge badge-neutral">${Utils.getQuestionTypeLabel(q.question_type)}</span>
+            <!-- Timer -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem; min-height: 38px;">
                 <div id="timer-container"></div>
             </div>
+            
+            <!-- Question Title -->
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem;">${escapeHtml(q.title)}</h2>
             
             <!-- Description -->
             <div class="desc-text">${escapeHtml(q.description)}</div>
@@ -197,18 +191,10 @@ function renderQuestion(q) {
             <form id="submission-form" onsubmit="submitAnswer(event)">
                 ${answerHtml}
                 
-                <div class="grid grid-cols-2 mt-4">
-                    ${
-                      hasHints
-                        ? `
-                        <button type="button" class="btn btn-secondary" onclick="openHintsModal()">
-                            Need Decryption Hint? (${hintsCount})
-                        </button>
-                    `
-                        : "<div></div>"
-                    }
+                <div class="grid grid-cols-2 mt-4" style="align-items: center; justify-items: stretch;">
+                    <div id="hint-btn-container"></div>
                     <button type="submit" class="btn btn-primary" id="submit-btn">
-                        Submit Solution
+                        Submit to Volunteer
                     </button>
                 </div>
             </form>
@@ -235,6 +221,9 @@ function renderQuestion(q) {
 
   // Setup Countdown Timer
   setupTimer(q.time_limit_seconds);
+
+  // Setup Hint Visibility Timer
+  setupHintTimer();
 }
 
 function setupTimer(timeLimit) {
@@ -387,38 +376,19 @@ function submitAnswer(e) {
 
 function renderSuccessState(answer, timestampStr) {
   const mainContent = document.getElementById("main-content");
-  const formattedTime = new Date(timestampStr).toLocaleTimeString();
 
   mainContent.innerHTML = `
-        <div class="card success-overlay">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">📡</div>
-            <span class="checkpoint-badge" style="background-color: var(--success); display: inline-block; margin-bottom: 1rem;">
-                Pending Verification
-            </span>
-            <h2 style="color: var(--text-main); margin-bottom: 0.5rem;">Mission Code Transmitted</h2>
-            <p style="margin-bottom: 2rem; max-width: 480px; margin-left: auto; margin-right: auto;">
-                Your decryption logic has been secured. Please present this screen to the checkpoint coordinator for manual grading.
+        <div class="card success-overlay" style="text-align: center; border-top: 4px solid var(--success);">
+            <h2 style="color: var(--text-main); margin-top: 1rem; margin-bottom: 1rem;">✅ Solution Submitted</h2>
+            <p style="color: var(--text-main); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
+                Please find your Volunteer for verification.
+            </p>
+            <p style="margin-bottom: 2rem; color: var(--text-muted);">
+                Your response has been saved successfully.
             </p>
             
-            <div style="background-color: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: left; margin-bottom: 2rem;">
-                <div style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem;">
-                    Mission Context
-                </div>
-                <h4 style="margin-bottom: 1rem;">${escapeHtml(activeQuestion.title)}</h4>
-                
-                <div style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem;">
-                    Your Solution
-                </div>
-                <div class="code-container" style="margin: 0; word-break: break-all; white-space: pre-wrap;">${escapeHtml(answer)}</div>
-                
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-top: 1.5rem;">
-                    <span>SUBMISSION TIME: ${formattedTime}</span>
-                    <span>POINTS VALUE: ${activeQuestion.points}</span>
-                </div>
-            </div>
-            
-            <button class="btn btn-secondary btn-sm" onclick="editSubmittedAnswer()">
-                Modify Solution
+            <button class="btn btn-primary" onclick="window.location.href='index.html'">
+                Done
             </button>
         </div>
     `;
@@ -463,7 +433,6 @@ function renderHintsModal() {
                                 <span style="font-weight: 700; color: var(--primary); font-size: 0.85rem; text-transform: uppercase;">
                                     Hint #${hint.order_no} (Revealed)
                                 </span>
-                                <span class="badge badge-accent">-${hint.penalty} Pts</span>
                             </div>
                             <div class="hint-content">${escapeHtml(hint.text)}</div>
                         </div>
@@ -475,10 +444,9 @@ function renderHintsModal() {
                                 <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
                                     Hint #${hint.order_no} (Locked)
                                 </span>
-                                <span class="badge badge-danger">-${hint.penalty} Pts Penalty</span>
                             </div>
                             <div style="margin-top: 0.5rem;">
-                                <button class="btn btn-accent btn-sm" onclick="confirmRevealHint(${hint.order_no}, ${hint.penalty})">
+                                <button class="btn btn-accent btn-sm" onclick="confirmRevealHint(${hint.order_no})">
                                     Decrypt Hint #${hint.order_no}
                                 </button>
                             </div>
@@ -491,10 +459,10 @@ function renderHintsModal() {
     `;
 }
 
-function confirmRevealHint(orderNo, penalty) {
+function confirmRevealHint(orderNo) {
   if (
     confirm(
-      `Decrypting this hint will incur a deduction of ${penalty} points from your final challenge score.\n\nAre you sure you wish to proceed?`,
+      `Are you sure you wish to decrypt Hint #${orderNo}?`,
     )
   ) {
     Utils.revealHint(questionUid, orderNo);
@@ -516,3 +484,82 @@ function escapeHtml(text) {
     return map[m];
   });
 }
+
+function setupHintTimer() {
+  const hintBtnContainer = document.getElementById("hint-btn-container");
+  if (!hintBtnContainer) return;
+
+  const startKey = `cq_timer_start_${questionUid}`;
+  let startTimestamp = localStorage.getItem(startKey);
+  if (!startTimestamp) {
+    startTimestamp = Math.floor(Date.now() / 1000).toString();
+    localStorage.setItem(startKey, startTimestamp);
+    localStorage.setItem(`cq_timer_qid_${questionUid}`, questionUid);
+  }
+
+  const startSec = parseInt(startTimestamp);
+  const hintsCount = activeQuestion.hints ? activeQuestion.hints.length : 0;
+  const hasHints = hintsCount > 0;
+
+  if (!hasHints) {
+    hintBtnContainer.innerHTML = "<div></div>";
+    return;
+  }
+
+  function updateHintVisibility() {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const elapsed = nowSec - startSec;
+
+    if (elapsed >= 60) {
+      hintBtnContainer.innerHTML = `
+        <button type="button" class="btn btn-secondary" onclick="openHintsModal()">
+            Need a Hint?
+        </button>
+      `;
+      return true; // Stop interval
+    } else {
+      hintBtnContainer.innerHTML = "<div></div>";
+      return false; // Continue checking
+    }
+  }
+
+  // Check immediately
+  const isFinished = updateHintVisibility();
+  if (!isFinished) {
+    const hintInterval = setInterval(() => {
+      if (updateHintVisibility()) {
+        clearInterval(hintInterval);
+      }
+    }, 1000);
+  }
+}
+
+function toggleMenu(event) {
+  if (event) {
+    event.stopPropagation();
+  }
+  const dropdown = document.getElementById("menu-dropdown");
+  if (dropdown) {
+    dropdown.classList.toggle("active");
+  }
+}
+
+function openRulesModal(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const dropdown = document.getElementById("menu-dropdown");
+  if (dropdown) {
+    dropdown.classList.remove("active");
+  }
+  Utils.openModal("rules-modal-overlay");
+}
+
+// Close dropdown when clicking anywhere else
+document.addEventListener("click", () => {
+  const dropdown = document.getElementById("menu-dropdown");
+  if (dropdown) {
+    dropdown.classList.remove("active");
+  }
+});

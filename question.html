@@ -64,6 +64,71 @@
             letter-spacing: 0.1em;
             text-transform: uppercase;
         }
+
+        /* Menu / Hamburger Styles */
+        .menu-container {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 24px;
+            height: 18px;
+            padding: 0;
+            z-index: 101;
+        }
+
+        .menu-btn span {
+            display: block;
+            width: 100%;
+            height: 3px;
+            background-color: var(--primary);
+            border-radius: 2px;
+            transition: var(--transition);
+        }
+
+        .menu-dropdown {
+            position: absolute;
+            right: 0;
+            top: 28px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            display: none;
+            flex-direction: column;
+            min-width: 120px;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .menu-dropdown.active {
+            display: flex;
+        }
+
+        .menu-dropdown a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: var(--transition);
+            text-align: left;
+        }
+
+        .menu-dropdown a:hover {
+            background-color: rgba(15, 90, 67, 0.05);
+            color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -72,8 +137,20 @@
         <div class="mission-container">
             
             <!-- Logo Header -->
-            <div class="header-logo">
+            <div class="header-logo" style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%;">
                 <div class="header-logo-text">CODE<span>QUEST</span></div>
+                
+                <!-- Menu / Hamburger Button -->
+                <div class="menu-container" style="position: absolute; right: 0;">
+                    <button id="menu-btn" class="menu-btn" onclick="toggleMenu(event)" aria-label="Menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <div class="menu-dropdown" id="menu-dropdown">
+                        <a href="#" onclick="openRulesModal(event)">Rules</a>
+                    </div>
+                </div>
             </div>
             
             <!-- Main Content Area -->
@@ -105,6 +182,55 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('hint-modal-overlay')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rules Modal Overlay -->
+    <div class="modal-overlay" id="rules-modal-overlay">
+        <div class="modal-container" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Code Quest Rules</h3>
+                <button class="modal-close" onclick="Utils.closeModal('rules-modal-overlay')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ul style="list-style-type: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; color: var(--text-main); font-size: 0.95rem; font-weight: 500;">
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Do not refresh the page unnecessarily.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Team members must stay together.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Follow volunteer instructions.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Hints become available only after 1 minute.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Each hint may reduce your score.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Once submitted, your response will be verified by the Volunteer.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Reattempts are allowed only if permitted by the Volunteer.</span>
+                    </li>
+                    <li style="display: flex; gap: 0.5rem; align-items: start;">
+                        <span>•</span>
+                        <span>Any unfair means will result in immediate disqualification.</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('rules-modal-overlay')">Close</button>
             </div>
         </div>
     </div>
