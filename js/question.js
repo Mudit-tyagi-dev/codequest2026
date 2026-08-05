@@ -163,6 +163,9 @@ function renderQuestion(q) {
   const hintsCount = q.hints ? q.hints.length : 0;
   const hasHints = hintsCount > 0;
 
+  const hasDescription = q.description && q.description.trim().length > 0;
+  const primaryText = hasDescription ? q.description : q.title;
+
   mainContent.innerHTML = `
         <div class="card">
             <!-- Timer -->
@@ -170,11 +173,8 @@ function renderQuestion(q) {
                 <div id="timer-container"></div>
             </div>
             
-            <!-- Question Title -->
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem;">${escapeHtml(q.title)}</h2>
-            
             <!-- Description -->
-            <div class="desc-text">${escapeHtml(q.description)}</div>
+            <div class="desc-text">${escapeHtml(primaryText)}</div>
             
             <!-- Image Attachment -->
             ${
