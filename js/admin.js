@@ -935,6 +935,102 @@ async function loadAdminTeamDetails(qrId) {
         populateQuestionsDropdown();
         document.getElementById('ad-question-select').value = teamData.current_question || (localQuestion !== 'None' ? localQuestion : '');
 
+        // Populate Checkpoint History using ONLY backend fields
+        const historyContainer = document.getElementById('ad-t-history-container');
+        historyContainer.innerHTML = '';
+
+        const historyItems = teamData.submissions || teamData.history || teamData.checkpoint_history || teamData.checkpoints;
+        if (Array.isArray(historyItems) && historyItems.length > 0) {
+            // Sort by timestamp latest first
+            const sortedHistory = [...historyItems].sort((a, b) => {
+                const timeA = new Date(a.timestamp || a.created_at || 0).getTime();
+                const timeB = new Date(b.timestamp || b.created_at || 0).getTime();
+                return timeB - timeA;
+            });
+
+            sortedHistory.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.style.backgroundColor = 'var(--bg)';
+                itemEl.style.border = '1px solid var(--border)';
+                itemEl.style.borderRadius = 'var(--radius-sm)';
+                itemEl.style.padding = '0.75rem';
+                itemEl.style.fontSize = '0.85rem';
+                itemEl.style.display = 'flex';
+                itemEl.style.flexDirection = 'column';
+                itemEl.style.gap = '0.35rem';
+
+                let html = '';
+
+                // Checkpoint Number
+                const checkpointNo = item.checkpoint_no || item.checkpoint_number || item.checkpoint;
+                if (checkpointNo !== undefined && checkpointNo !== null) {
+                    html += `<div style="font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 0.25rem;">Checkpoint #${checkpointNo}</div>`;
+                } else {
+                    html += `<div style="font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 0.25rem;">Checkpoint Submission</div>`;
+                }
+
+                // Question ID
+                const questionId = item.question_id || item.qid;
+                if (questionId !== undefined && questionId !== null) {
+                    html += `<div><strong>Question ID:</strong> ${escapeHtml(String(questionId))}</div>`;
+                }
+
+                // Submission Status
+                const status = item.status || item.submission_status;
+                if (status !== undefined && status !== null) {
+                    html += `<div><strong>Status:</strong> <span style="text-transform: capitalize; font-weight: 600;">${escapeHtml(String(status))}</span></div>`;
+                }
+
+                // Time Taken
+                const timeTaken = item.time_taken || item.duration || item.elapsed_time;
+                if (timeTaken !== undefined && timeTaken !== null) {
+                    let timeStr = String(timeTaken);
+                    if (typeof timeTaken === 'number') {
+                        const mins = Math.floor(timeTaken / 60);
+                        const secs = timeTaken % 60;
+                        timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                    }
+                    html += `<div><strong>Time Taken:</strong> ${escapeHtml(timeStr)}</div>`;
+                }
+
+                // Hints Used
+                const hintsUsed = item.hints_used || item.hint_count || item.hints;
+                if (hintsUsed !== undefined && hintsUsed !== null) {
+                    html += `<div><strong>Hints Used:</strong> ${escapeHtml(String(hintsUsed))}</div>`;
+                }
+
+                // Attempts
+                const attempts = item.attempts || item.attempt_count;
+                if (attempts !== undefined && attempts !== null) {
+                    html += `<div><strong>Attempts:</strong> ${escapeHtml(String(attempts))}</div>`;
+                }
+
+                // Points Awarded
+                const points = item.points_awarded || item.points || item.score;
+                if (points !== undefined && points !== null) {
+                    html += `<div><strong>Points Awarded:</strong> ${escapeHtml(String(points))}</div>`;
+                }
+
+                // Volunteer Notes
+                const notes = item.note || item.notes || item.volunteer_notes || item.comment;
+                if (notes !== undefined && notes !== null && String(notes).trim().length > 0) {
+                    html += `<div style="background-color: var(--card-bg); border-left: 3px solid var(--accent); padding: 0.35rem 0.5rem; margin-top: 0.25rem; font-style: italic;"><strong>Volunteer Notes:</strong> ${escapeHtml(String(notes))}</div>`;
+                }
+
+                // Timestamp
+                const timestamp = item.timestamp || item.created_at;
+                if (timestamp !== undefined && timestamp !== null) {
+                    const dateStr = new Date(timestamp).toLocaleString();
+                    html += `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; border-top: 1px solid var(--border); padding-top: 0.25rem;"><strong>Timestamp:</strong> ${escapeHtml(dateStr)}</div>`;
+                }
+
+                itemEl.innerHTML = html;
+                historyContainer.appendChild(itemEl);
+            });
+        } else {
+            historyContainer.innerHTML = `<div style="font-style: italic; color: var(--text-muted); font-size: 0.9rem; padding: 0.5rem 0;">No history returned by backend.</div>`;
+        }
+
         // Show Team details card
         teamCard.style.display = 'block';
         teamCard.scrollIntoView({ behavior: 'smooth' });
