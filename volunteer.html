@@ -180,65 +180,108 @@
             </div>
 
             <!-- Single Team Card -->
-            <div class="card" id="team-card" style="display: none; border-top: 4px solid var(--accent); padding-bottom: 1.5rem;">
-                <h3 style="color: var(--text-main); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+            <div class="card" id="team-card" style="display: none; border-top: 4px solid var(--accent); padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-main); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; font-size: 1.2rem;">
                     Team Information
                 </h3>
 
-                <div class="team-detail-list">
-                    <div class="detail-row">
-                        <div class="detail-label">Team Name</div>
-                        <div class="detail-value" id="t-name">-</div>
+                <div class="team-detail-list" style="margin-top: 0.5rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Team Name</div>
+                        <div class="detail-value" id="t-name" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">-</div>
                     </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Members</div>
-                        <div class="detail-value" id="t-members">-</div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Leader Name</div>
+                        <div class="detail-value" id="t-leader" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">-</div>
                     </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Current Question</div>
-                        <div class="detail-value" id="t-current-question">-</div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Team ID</div>
+                        <div class="detail-value" id="t-id" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">-</div>
                     </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Current Checkpoint</div>
-                        <div class="detail-value" id="t-current-checkpoint">0</div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Current Status</div>
+                        <div class="detail-value" id="t-status" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">-</div>
                     </div>
-                    <div class="detail-row">
-                        <div class="detail-label">Current Status</div>
-                        <div class="detail-value"><span id="team-status-badge" class="badge badge-neutral">Ongoing</span></div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Points</div>
+                        <div class="detail-value" id="t-points" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">0</div>
+                    </div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Attempted Questions</div>
+                        <div class="detail-value" id="t-attempted" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">0</div>
+                    </div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Current Question</div>
+                        <div class="detail-value" id="t-current-question" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">None</div>
+                    </div>
+                    <div class="detail-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0;">
+                        <div class="detail-label" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Hints Used</div>
+                        <div class="detail-value" id="t-hints-used" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">0</div>
                     </div>
                 </div>
 
-                <!-- Editable Controls -->
-                <div style="border-top: 2px dashed var(--border); padding-top: 1.25rem; margin-top: 0.5rem;">
-                    <form onsubmit="saveTeamProgress(event)">
-                        
-                        <!-- Status Dropdown -->
-                        <div class="form-group" style="margin-bottom: 1.25rem;">
-                            <label for="team-status-select" class="form-label">Status Dropdown</label>
-                            <select id="team-status-select" class="form-control select-large" required>
-                                <option value="Ongoing">Ongoing</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Disqualified">Disqualified</option>
+                <!-- Update Status Inline Form -->
+                <div style="border-top: 1px dashed var(--border); padding-top: 1rem; margin-top: 0.5rem;">
+                    <form onsubmit="handleStatusUpdate(event)" style="display: flex; align-items: center; gap: 0.5rem; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label for="team-status-select" class="form-label" style="margin-bottom: 0; font-size: 0.75rem; font-weight: 700;">Update Status:</label>
+                            <select id="team-status-select" class="form-control" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: var(--radius-sm); max-width: 140px;" required>
+                                <option value="ongoing">ongoing</option>
+                                <option value="completed">completed</option>
+                                <option value="disqualified">disqualified</option>
                             </select>
                         </div>
-
-                        <!-- Checkpoint Notes -->
-                        <div class="form-group" style="margin-bottom: 1.5rem;">
-                            <label for="checkpoint-notes" class="form-label">Checkpoint Notes</label>
-                            <textarea id="checkpoint-notes" class="form-control textarea-large" placeholder="e.g. Solved Question 4, Checkpoint Cleared, Puzzle Completed..."></textarea>
-                        </div>
-
-                        <!-- Large Save Button -->
-                        <button type="submit" class="btn btn-accent btn-large" id="btn-save-progress" style="width: 100%;">
-                            💾 SAVE
+                        <button type="submit" class="btn btn-primary btn-sm" style="width: auto; padding: 0.35rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
+                            Save Status
                         </button>
                     </form>
                 </div>
+            </div>
 
-                <!-- Info Note -->
-                <div class="api-note">
-                    Note: Status updates are sent directly to the backend. Checkpoint logs and notes are saved locally as those endpoints are not present in the current API spec.
-                </div>
+            <!-- Submission Card -->
+            <div class="card" id="submission-card" style="display: none; border-top: 4px solid var(--success); padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-main); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; font-size: 1.2rem;">
+                    Record Question Submission
+                </h3>
+                <form onsubmit="handleQuestionSubmission(event)" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="sub-question-id" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Question ID</label>
+                        <input type="number" id="sub-question-id" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;" placeholder="e.g. 1" required>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="sub-status" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Status</label>
+                        <select id="sub-status" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;" required>
+                            <option value="solved">solved</option>
+                            <option value="skipped">skipped</option>
+                            <option value="wrong">wrong</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="sub-attempts" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Attempts</label>
+                            <input type="number" id="sub-attempts" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;" value="1" min="1" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="sub-hints-used" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Hints Used</label>
+                            <input type="number" id="sub-hints-used" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;" value="0" min="0" max="3" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="sub-points-awarded" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Points Awarded</label>
+                            <input type="number" id="sub-points-awarded" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem;" value="0" min="0" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="sub-note" class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Volunteer Notes</label>
+                        <textarea id="sub-note" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.9rem; min-height: 60px;" placeholder="e.g. Cleared checkpoint details..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-large" style="padding: 0.75rem; font-size: 1rem; font-weight: 700; width: 100%;">
+                        Submit Question
+                    </button>
+                </form>
             </div>
 
             <!-- Footer -->

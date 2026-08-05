@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST 2026 | Leaderboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .leaderboard-container {
+            max-width: 800px;
+            width: 100%;
+            margin: 1.5rem auto;
+        }
+        .refresh-indicator {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .rank-1 { background-color: var(--accent); color: #1e293b; }
+        .rank-2 { background-color: #cbd5e1; color: #1e293b; }
+        .rank-3 { background-color: #b45309; color: white; }
+        .rank-other { background-color: var(--bg); color: var(--text-main); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="leaderboard-container">
+            
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+                <div>
+                    <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: -0.02em;">
+                        CODE<span>QUEST</span> • Leaderboard
+                    </h1>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Real-time Rankings</p>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                    <a href="index.html" class="btn btn-secondary btn-sm" style="text-decoration: none;">Home</a>
+                    <span class="refresh-indicator" id="refresh-time">Auto-refreshes in 10s</span>
+                </div>
+            </div>
+
+            <!-- Leaderboard Card -->
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="leaderboard-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Rank</th>
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Team Name</th>
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); text-align: right;">Points</th>
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); text-align: right;">Attempted</th>
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); text-align: right;">Hints Used</th>
+                                <th style="padding: 0.75rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); text-align: center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <!-- Dynamic leaderboard entries -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center" style="margin-top: 3rem; padding-bottom: 1.5rem;">
+                <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted);">
+                    Code Quest 2026 • Live Scoreboard
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        let countdown = 10;
+        let countdownInterval = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadLeaderboard();
+            startCountdown();
+        });
+
+        function startCountdown() {
+            countdown = 10;
+            const refreshEl = document.getElementById("refresh-time");
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    loadLeaderboard();
+                    countdown = 10;
+                }
+                refreshEl.textContent = `Auto-refreshes in ${countdown}s`;
+            }, 1000);
+        }
+
+        async function loadLeaderboard() {
+            const body = document.getElementById("leaderboard-body");
+            if (!body.innerHTML) {
+                body.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 2rem;">⌛ Loading leaderboard...</td></tr>`;
+            }
+
+            try {
+                // Fetch the backend leaderboard
+                const leaderboardData = await CodeQuestAPI.getLeaderboard();
+                
+                // Fetch the teams list in parallel to enrich with status
+                let teamsList = [];
+                try {
+                    teamsList = await CodeQuestAPI.getTeams();
+                } catch (e) {
+                    console.warn("Could not fetch teams list to enrich statuses:", e);
+                }
+
+                // Map team name/ID to status
+                const teamStatusMap = {};
+                if (Array.isArray(teamsList)) {
+                    teamsList.forEach(t => {
+                        teamStatusMap[t.id] = t.status || 'ongoing';
+                        teamStatusMap[t.team_name] = t.status || 'ongoing';
+                    });
+                }
+
+                // Render leaderboard
+                body.innerHTML = "";
+                if (Array.isArray(leaderboardData) && leaderboardData.length > 0) {
+                    leaderboardData.forEach(t => {
+                        const rank = t.rank || 0;
+                        let rankClass = "rank-other";
+                        if (rank === 1) rankClass = "rank-1";
+                        else if (rank === 2) rankClass = "rank-2";
+                        else if (rank === 3) rankClass = "rank-3";
+
+                        const status = teamStatusMap[t.team_id] || teamStatusMap[t.team_name] || "ongoing";
+                        let statusClass = "badge-neutral";
+                        if (status === "winner" || status === "completed") statusClass = "badge-success";
+                        else if (status === "disqualified") statusClass = "badge-danger";
+                        else if (status === "ongoing") statusClass = "badge-accent";
+
+                        // Get local storage hints fallback if available
+                        const localHints = localStorage.getItem(`codequest_team_${t.team_id}_hints_used`) || '0';
+
+                        const tr = document.createElement("tr");
+                        tr.style.borderBottom = "1px solid var(--border)";
+                        tr.innerHTML = `
+                            <td style="padding: 0.75rem;"><span class="rank-badge ${rankClass}">${rank}</span></td>
+                            <td style="padding: 0.75rem; font-weight: 600; color: var(--text-main);">${Utils.escapeHtml(t.team_name)}</td>
+                            <td style="padding: 0.75rem; font-weight: 700; color: var(--primary); text-align: right;">${t.total_points || 0}</td>
+                            <td style="padding: 0.75rem; text-align: right; font-weight: 500;">${t.submission_count || 0}</td>
+                            <td style="padding: 0.75rem; text-align: right; font-weight: 500;">${localHints}</td>
+                            <td style="padding: 0.75rem; text-align: center;"><span class="badge ${statusClass}" style="font-size: 0.65rem;">${status}</span></td>
+                        `;
+                        body.appendChild(tr);
+                    });
+                } else {
+                    body.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center" style="padding: 3rem;">
+                                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
+                                <h4 style="color: var(--text-muted);">No Leaderboard Data</h4>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (err) {
+                console.error("Leaderboard load failed:", err);
+                body.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 2rem; color: var(--error);">Error loading leaderboard: ${err.message}</td></tr>`;
+            }
+        }
+
+        // Simple helper if utils is not fully loaded
+        Utils.escapeHtml = Utils.escapeHtml || function(text) {
+            if (!text) return "";
+            const map = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        };
+    </script>
+</body>
+</html>

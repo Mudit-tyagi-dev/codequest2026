@@ -145,32 +145,11 @@ async function loadTeamDetails(qrId) {
     if (!qrId) return;
 
     const teamCard = document.getElementById('team-card');
+    const submissionCard = document.getElementById('submission-card');
     Utils.showToast('Loading team details...');
 
     try {
-        let teamData = null;
-        
-        // Call GET /admin/teams/qr/{qr_id}
-        try {
-            teamData = await CodeQuestAPI.getTeamByQR(qrId);
-        } catch (err) {
-            console.warn('QR lookup failed, trying fallback direct ID:', err);
-            if (/^\d+$/.test(qrId)) {
-                teamData = await CodeQuestAPI.getTeamById(parseInt(qrId));
-            }
-        }
-
-        // List fallback
-        if (!teamData) {
-            try {
-                const list = await CodeQuestAPI.getTeams();
-                const teams = Array.isArray(list) ? list : (list && Array.isArray(list.data) ? list.data : []);
-                teamData = teams.find(t => String(t.qr_id) === String(qrId) || String(t.id) === String(qrId));
-            } catch (listErr) {
-                console.error('List fallback lookup failed:', listErr);
-            }
-        }
-
+        const teamData = await CodeQuestAPI.getVolunteerTeam(qrId);
         if (!teamData) {
             throw new Error('No team found for the scanned QR.');
         }
@@ -179,121 +158,105 @@ async function loadTeamDetails(qrId) {
         currentTeamQrId = qrId;
         activeTeamData = teamData;
 
-        // Display Team Information: Team Name, Members, Current Question, Current Checkpoint, Current Status
+        // Display permitted Team Information details
         document.getElementById('t-name').textContent = teamData.team_name || 'Unnamed Team';
-        document.getElementById('t-members').textContent = teamData.leader_name || 'None';
+        document.getElementById('t-leader').textContent = teamData.leader_name || 'None';
+        document.getElementById('t-id').textContent = teamData.id || '-';
+        document.getElementById('t-status').textContent = teamData.status || 'ongoing';
+        document.getElementById('t-points').textContent = teamData.total_points !== undefined ? teamData.total_points : 0;
+        document.getElementById('t-attempted').textContent = teamData.attempted_questions !== undefined ? teamData.attempted_questions : 0;
 
-        // Load local storage values for missing API fields (Current Question, Current Checkpoint, and Notes)
+        // Local storage fallbacks for question details not returned in direct API
         const localQuestion = localStorage.getItem(`codequest_team_${teamData.id}_current_question`) || 'None';
-        const localCheckpoint = localStorage.getItem(`codequest_team_${teamData.id}_current_checkpoint`) || '0';
-        const localNotes = localStorage.getItem(`codequest_team_${teamData.id}_notes`) || '';
+        const localHintsUsed = localStorage.getItem(`codequest_team_${teamData.id}_hints_used`) || '0';
 
-        document.getElementById('t-current-question').textContent = teamData.current_question || localQuestion;
-        document.getElementById('t-current-checkpoint').textContent = teamData.current_checkpoint || localCheckpoint;
-        document.getElementById('checkpoint-notes').value = localNotes;
+        document.getElementById('t-current-question').textContent = localQuestion;
+        document.getElementById('t-hints-used').textContent = localHintsUsed;
 
-        // Status Badge & Dropdown Mapping
-        const displayStatus = mapBackendToUiStatus(teamData.status);
-        document.getElementById('team-status-select').value = displayStatus;
-        updateStatusBadge(displayStatus);
+        // Status Dropdown Setup
+        let mappedStatus = (teamData.status || 'ongoing').toLowerCase();
+        if (mappedStatus === 'winner') mappedStatus = 'completed';
+        document.getElementById('team-status-select').value = mappedStatus;
 
-        // Show Team details card
+        // Show Team and Submission cards
         teamCard.style.display = 'block';
+        submissionCard.style.display = 'block';
         teamCard.scrollIntoView({ behavior: 'smooth' });
         Utils.showToast('Team coordinates decrypted.');
     } catch (error) {
         console.error('Failed to load team details:', error);
         alert('Lookup Failed: ' + error.message);
         teamCard.style.display = 'none';
+        submissionCard.style.display = 'none';
     }
 }
 
-// Status Mappings
-function mapBackendToUiStatus(backendStatus) {
-    if (!backendStatus) return 'Ongoing';
-    const status = backendStatus.toLowerCase();
-    if (status === 'winner') return 'Completed';
-    if (status === 'disqualified' || status === 'rejected') return 'Disqualified';
-    return 'Ongoing';
-}
-
-function mapUiToBackendStatus(uiStatus) {
-    if (uiStatus === 'Completed') return 'winner';
-    if (uiStatus === 'Disqualified') return 'disqualified';
-    return 'registered'; // maps Ongoing to registered
-}
-
-function updateStatusBadge(status) {
-    const badge = document.getElementById('team-status-badge');
-    badge.textContent = status;
-    badge.className = 'badge'; // reset
-
-    if (status === 'Completed') {
-        badge.classList.add('badge-success');
-    } else if (status === 'Disqualified') {
-        badge.classList.add('badge-danger');
-    } else {
-        badge.classList.add('badge-accent');
-    }
-}
-
-// Save team progress
-async function saveTeamProgress(event) {
+// Handle team status update
+async function handleStatusUpdate(event) {
     event.preventDefault();
-    if (!currentTeamId) {
-        alert('No team loaded.');
+    if (!currentTeamQrId) return;
+
+    const statusVal = document.getElementById('team-status-select').value;
+    try {
+        await CodeQuestAPI.updateVolunteerTeamStatus(currentTeamQrId, statusVal);
+        Utils.showToast('Team status updated successfully.');
+        await loadTeamDetails(currentTeamQrId);
+    } catch (err) {
+        console.error('Failed to update status:', err);
+        alert('Status Update Failed: ' + err.message);
+    }
+}
+
+// Handle question submission from Volunteer
+async function handleQuestionSubmission(event) {
+    event.preventDefault();
+    if (!currentTeamQrId || !currentTeamId) {
+        alert('No active team loaded.');
         return;
     }
 
-    const selectStatus = document.getElementById('team-status-select').value;
-    const notesText = document.getElementById('checkpoint-notes').value.trim();
+    const questionId = parseInt(document.getElementById('sub-question-id').value);
+    const rawStatus = document.getElementById('sub-status').value;
+    const attempts = parseInt(document.getElementById('sub-attempts').value);
+    const hintsUsed = parseInt(document.getElementById('sub-hints-used').value);
+    const pointsAwarded = parseInt(document.getElementById('sub-points-awarded').value);
+    const note = document.getElementById('sub-note').value.trim() || null;
 
-    const saveButton = document.getElementById('btn-save-progress');
-    const originalText = saveButton.innerHTML;
+    // Map wrong status to failed for the backend schema
+    const apiStatus = rawStatus === 'wrong' ? 'failed' : rawStatus;
 
-    saveButton.disabled = true;
-    saveButton.innerHTML = '⌛ Saving Progress...';
+    const payload = {
+        question_id: questionId,
+        status: apiStatus,
+        note: note,
+        hints_used: hintsUsed,
+        attempts: attempts,
+        points_awarded: pointsAwarded
+    };
 
     try {
-        const mappedBackendStatus = mapUiToBackendStatus(selectStatus);
+        await CodeQuestAPI.submitVolunteerSubmission(currentTeamQrId, payload);
+        
+        // Save stats to LocalStorage to reflect in UI on refresh/re-scan
+        localStorage.setItem(`codequest_team_${currentTeamId}_current_question`, 'Question ' + questionId);
+        const prevHints = parseInt(localStorage.getItem(`codequest_team_${currentTeamId}_hints_used`) || '0');
+        localStorage.setItem(`codequest_team_${currentTeamId}_hints_used`, prevHints + hintsUsed);
 
-        // 1. Update status on backend
-        await CodeQuestAPI.updateTeamStatus(currentTeamId, mappedBackendStatus);
+        Utils.showToast('Question submission recorded successfully.');
+        
+        // Reset form fields
+        document.getElementById('sub-question-id').value = '';
+        document.getElementById('sub-status').value = 'solved';
+        document.getElementById('sub-attempts').value = '1';
+        document.getElementById('sub-hints-used').value = '0';
+        document.getElementById('sub-points-awarded').value = '0';
+        document.getElementById('sub-note').value = '';
 
-        // 2. Save notes and parse updates locally (since backend endpoints are not available yet)
-        localStorage.setItem(`codequest_team_${currentTeamId}_notes`, notesText);
-
-        if (notesText) {
-            // Simple parsing to extract current question (e.g. "Solved Question 4" -> Question 4)
-            const questionMatch = notesText.match(/question\s*(\d+)/i) || notesText.match(/q\s*(\d+)/i);
-            if (questionMatch) {
-                localStorage.setItem(`codequest_team_${currentTeamId}_current_question`, 'Question ' + questionMatch[1]);
-            }
-
-            // Simple parsing to extract current checkpoint (e.g. "Checkpoint 3" -> 3)
-            const checkpointMatch = notesText.match(/checkpoint\s*(\d+)/i);
-            if (checkpointMatch) {
-                localStorage.setItem(`codequest_team_${currentTeamId}_current_checkpoint`, checkpointMatch[1]);
-            } else {
-                // Increment checkpoint count if notes updated but no number is provided
-                const oldNotes = localStorage.getItem(`codequest_team_${currentTeamId}_notes_history`) || '';
-                if (notesText !== oldNotes) {
-                    const currentVal = parseInt(localStorage.getItem(`codequest_team_${currentTeamId}_current_checkpoint`) || '0');
-                    localStorage.setItem(`codequest_team_${currentTeamId}_current_checkpoint`, currentVal + 1);
-                    localStorage.setItem(`codequest_team_${currentTeamId}_notes_history`, notesText);
-                }
-            }
-        }
-
-        // Reload UI fields
+        // Reload details
         await loadTeamDetails(currentTeamQrId);
-        Utils.showToast('Progress saved successfully.');
     } catch (err) {
-        console.error('Error saving progress:', err);
-        alert('Save Failed: ' + err.message);
-    } finally {
-        saveButton.disabled = false;
-        saveButton.innerHTML = originalText;
+        console.error('Submission failed:', err);
+        alert('Submission Failed: ' + err.message);
     }
 }
 

@@ -154,6 +154,29 @@ const CodeQuestAPI = {
             method: 'POST',
             body: formData
         });
+    },
+
+    // Volunteer APIs
+    async getVolunteerTeam(qrId) {
+        return await request(`/volunteer/team/${qrId}`);
+    },
+
+    async updateVolunteerTeamStatus(qrId, status) {
+        return await request(`/volunteer/team/status/${qrId}?status=${encodeURIComponent(status)}`, {
+            method: 'POST'
+        });
+    },
+
+    async submitVolunteerSubmission(qrId, submissionData) {
+        return await request(`/volunteer/team/submission/${qrId}`, {
+            method: 'POST',
+            body: JSON.stringify(submissionData)
+        });
+    },
+
+    // Admin Leaderboard
+    async getLeaderboard() {
+        return await request('/admin/leaderboard/');
     }
 };
 

@@ -130,6 +130,8 @@ function renderQuestion(q) {
   const saved = Utils.getTeamAnswer(questionUid);
   const inProgressAns = saved ? saved.answer : "";
 
+  const revealedCount = Utils.getRevealedHints(questionUid).length;
+
   let answerHtml = "";
   if (q.question_type === "mcq" && hasOptions) {
     answerHtml = `
@@ -168,8 +170,16 @@ function renderQuestion(q) {
 
   mainContent.innerHTML = `
         <div class="card">
-            <!-- Timer -->
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem; min-height: 38px;">
+            <!-- Question ID, Hints Used Counter & Timer -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; min-height: 38px;">
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <div style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em;">
+                        Question ID: ${q.id}
+                    </div>
+                    <div id="hints-counter" style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem;">
+                        Hints Used : ${revealedCount}
+                    </div>
+                </div>
                 <div id="timer-container"></div>
             </div>
             
@@ -377,19 +387,39 @@ function submitAnswer(e) {
 function renderSuccessState(answer, timestampStr) {
   const mainContent = document.getElementById("main-content");
 
+  const startKey = `cq_timer_start_${questionUid}`;
+  const startSec = parseInt(localStorage.getItem(startKey)) || Math.floor(Date.now() / 1000);
+  const endSec = Math.floor(new Date(timestampStr).getTime() / 1000);
+  const elapsed = Math.max(0, endSec - startSec);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const timeTakenStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+  const hintsCount = Utils.getRevealedHints(questionUid).length;
+
   mainContent.innerHTML = `
-        <div class="card success-overlay" style="text-align: center; border-top: 4px solid var(--success);">
-            <h2 style="color: var(--text-main); margin-top: 1rem; margin-bottom: 1rem;">✅ Solution Submitted</h2>
-            <p style="color: var(--text-main); font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">
-                Please find your Volunteer for verification.
-            </p>
-            <p style="margin-bottom: 2rem; color: var(--text-muted);">
-                Your response has been saved successfully.
-            </p>
+        <div class="card success-overlay" style="text-align: center; border-top: 4px solid var(--accent); padding: 2rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">⏳</div>
+            <h2 style="color: var(--text-main); margin-bottom: 1.5rem; font-size: 1.5rem; font-weight: 800;">Waiting for Volunteer Verification</h2>
             
-            <button class="btn btn-primary" onclick="window.location.href='index.html'">
-                Done
-            </button>
+            <div style="background-color: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: left; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Question ID:</span>
+                    <span style="color: var(--text-main);">${activeQuestion ? activeQuestion.id : 'N/A'}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Hints Used:</span>
+                    <span style="color: var(--text-main);">${hintsCount}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Time Taken:</span>
+                    <span style="color: var(--text-main);">${timeTakenStr}</span>
+                </div>
+            </div>
+            
+            <p style="color: var(--primary); font-weight: 700; font-size: 1.1rem; margin-bottom: 0;">
+                Submission Sent Successfully
+            </p>
         </div>
     `;
 }
@@ -467,6 +497,15 @@ function confirmRevealHint(orderNo) {
   ) {
     Utils.revealHint(questionUid, orderNo);
     renderHintsModal();
+    updateHintsCounterOnScreen();
+  }
+}
+
+function updateHintsCounterOnScreen() {
+  const counterEl = document.getElementById("hints-counter");
+  if (counterEl) {
+    const revealedCount = Utils.getRevealedHints(questionUid).length;
+    counterEl.textContent = `Hints Used : ${revealedCount}`;
   }
 }
 

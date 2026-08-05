@@ -98,16 +98,17 @@
         .menu-dropdown {
             position: absolute;
             right: 0;
-            top: 28px;
+            top: 32px;
             background-color: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            box-shadow: var(--shadow-md);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
             display: none;
             flex-direction: column;
-            min-width: 120px;
+            min-width: 130px;
             z-index: 100;
             overflow: hidden;
+            padding: 0.25rem 0;
         }
 
         .menu-dropdown.active {
@@ -194,40 +195,31 @@
                 <button class="modal-close" onclick="Utils.closeModal('rules-modal-overlay')">&times;</button>
             </div>
             <div class="modal-body">
-                <ul style="list-style-type: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; color: var(--text-main); font-size: 0.95rem; font-weight: 500;">
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Do not refresh the page unnecessarily.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Team members must stay together.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Follow volunteer instructions.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Hints become available only after 1 minute.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Each hint may reduce your score.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Once submitted, your response will be verified by the Volunteer.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Reattempts are allowed only if permitted by the Volunteer.</span>
-                    </li>
-                    <li style="display: flex; gap: 0.5rem; align-items: start;">
-                        <span>•</span>
-                        <span>Any unfair means will result in immediate disqualification.</span>
-                    </li>
-                </ul>
+                <div style="display: flex; flex-direction: column; gap: 1rem; color: var(--text-main); font-size: 0.95rem; font-weight: 500; line-height: 1.5;">
+                    <div>
+                        <h4 style="color: var(--primary); margin-bottom: 0.25rem; font-weight: 700; font-size: 1rem;">💡 Hint Rules</h4>
+                        <ul style="list-style-type: none; padding-left: 0.75rem; margin: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                            <li>• Hints become available only after 60 seconds from opening the question.</li>
+                            <li>• Review hints carefully as they are designed to guide your decryption process.</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 style="color: var(--primary); margin-bottom: 0.25rem; font-weight: 700; font-size: 1rem;">📝 Submission Rules</h4>
+                        <ul style="list-style-type: none; padding-left: 0.75rem; margin: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                            <li>• Once you submit your answer, the page will lock to a waiting verification screen.</li>
+                            <li>• You must locate a volunteer and show them your waiting screen for evaluation.</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 style="color: var(--primary); margin-bottom: 0.25rem; font-weight: 700; font-size: 1rem;">🔄 Reattempt Rules</h4>
+                        <ul style="list-style-type: none; padding-left: 0.75rem; margin: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+                            <li>• The volunteer has the sole authority to mark a submission as solved, wrong (failed), or skipped.</li>
+                            <li>• Reattempts are permitted only if a volunteer evaluates your submission status and updates it on the system.</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary btn-sm" onclick="Utils.closeModal('rules-modal-overlay')">Close</button>

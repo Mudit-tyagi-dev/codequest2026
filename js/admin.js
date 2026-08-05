@@ -206,11 +206,12 @@ function renderTeams(teams) {
         const teamName = t.team_name || t.name || 'Unnamed Team';
         const membersVal = Array.isArray(t.members) ? t.members.join(', ') : (t.members || t.leader_name || 'None');
         const displayStatus = mapBackendToUiStatus(t.status);
+        const statusLower = displayStatus.toLowerCase();
         
         let statusClass = 'badge-neutral';
-        if (displayStatus === 'Completed') statusClass = 'badge-success';
-        if (displayStatus === 'Disqualified') statusClass = 'badge-danger';
-        if (displayStatus === 'Ongoing') statusClass = 'badge-accent';
+        if (statusLower === 'completed' || statusLower === 'winner') statusClass = 'badge-success';
+        else if (statusLower === 'disqualified') statusClass = 'badge-danger';
+        else if (statusLower === 'ongoing') statusClass = 'badge-accent';
 
         const currentCheckpoint = t.current_checkpoint || localStorage.getItem(`codequest_team_${t.id}_current_checkpoint`) || '0';
         const currentQuestion = t.current_question || localStorage.getItem(`codequest_team_${t.id}_current_question`) || 'None';
@@ -982,16 +983,14 @@ async function saveAdminTeamChanges(event) {
     saveBtn.innerHTML = '⌛ Saving Changes...';
 
     try {
-        const mappedBackendStatus = mapUiToBackendStatus(selectStatus);
-
-        // 1. Save status to backend
-        await CodeQuestAPI.updateTeamStatus(adminCurrentTeamId, mappedBackendStatus);
-
+        // 1. Save status to backend exactly as selected
+        await CodeQuestAPI.updateTeamStatus(adminCurrentTeamId, selectStatus);
+ 
         // 2. Save Question, Notes, and Penalty locally (since backend endpoints are not available)
         localStorage.setItem(`codequest_team_${adminCurrentTeamId}_notes`, notesText);
         localStorage.setItem(`codequest_team_${adminCurrentTeamId}_penalty`, penaltyInput);
         localStorage.setItem(`codequest_team_${adminCurrentTeamId}_current_question`, selectQuestion || 'None');
-
+ 
         // Dynamically compute checkpoint number based on selected question index
         if (selectQuestion) {
             const qIndex = questionsList.findIndex(q => q.title === selectQuestion);
@@ -1000,10 +999,10 @@ async function saveAdminTeamChanges(event) {
         } else {
             localStorage.setItem(`codequest_team_${adminCurrentTeamId}_current_checkpoint`, 0);
         }
-
+ 
         // Completion time management
         const timeKey = `codequest_team_${adminCurrentTeamId}_completion_time`;
-        if (selectStatus === 'Completed') {
+        if (selectStatus === 'completed' || selectStatus === 'winner') {
             const savedTime = localStorage.getItem(timeKey);
             if (!savedTime) {
                 localStorage.setItem(timeKey, new Date().toISOString());
@@ -1027,11 +1026,8 @@ async function saveAdminTeamChanges(event) {
 
 // Status Mappings
 function mapBackendToUiStatus(backendStatus) {
-    if (!backendStatus) return 'Ongoing';
-    const status = backendStatus.toLowerCase();
-    if (status === 'winner') return 'Completed';
-    if (status === 'disqualified' || status === 'rejected') return 'Disqualified';
-    return 'Ongoing';
+    if (!backendStatus) return 'ongoing';
+    return backendStatus.toLowerCase();
 }
 
 function mapUiToBackendStatus(uiStatus) {

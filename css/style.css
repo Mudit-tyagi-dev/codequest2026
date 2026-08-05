@@ -318,3 +318,56 @@ input:checked + .slider:before {
     font-size: 0.85rem;
     margin-top: 0.25rem;
 }
+
+/* Mobile Responsiveness improvements */
+@media (max-width: 576px) {
+    /* Make tables responsive with horizontal scroll context */
+    table, .data-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table th, table td, .data-table th, .data-table td {
+        padding: 0.5rem 0.35rem !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* Cards spacing */
+    .card {
+        padding: 1.25rem !important;
+        border-radius: var(--radius-sm) !important;
+    }
+    
+    /* Modals auto scaling */
+    .modal-container {
+        width: calc(100% - 1.5rem) !important;
+        max-width: 95% !important;
+        margin: 0.75rem auto !important;
+        max-height: 95vh !important;
+        border-radius: var(--radius) !important;
+    }
+    
+    .modal-body {
+        padding: 1rem !important;
+    }
+
+    /* Success state waiting page */
+    .success-overlay {
+        padding: 1.5rem 1rem !important;
+    }
+
+    /* Header wrapper panel elements stacking */
+    .panel-header {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        align-items: flex-start !important;
+    }
+
+    /* Grid layout auto stack */
+    .grid-cols-2, .grid-cols-3 {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+}
