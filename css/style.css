@@ -370,4 +370,13 @@ input:checked + .slider:before {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
     }
+
+    /* Mobile toast positioning */
+    .toast-container {
+        top: 10px !important;
+        right: 10px !important;
+        left: 10px !important;
+        width: calc(100% - 20px) !important;
+        max-width: none !important;
+    }
 }

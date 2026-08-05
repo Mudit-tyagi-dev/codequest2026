@@ -364,7 +364,7 @@ function submitAnswer(e) {
   const answerVal = document.getElementById("answer-input").value.trim();
 
   if (!answerVal) {
-    alert("Please enter a decryption solution before submitting!");
+    Utils.showToast("Please enter a decryption solution before submitting!", "warning");
     return;
   }
 
@@ -489,12 +489,12 @@ function renderHintsModal() {
     `;
 }
 
-function confirmRevealHint(orderNo) {
-  if (
-    confirm(
-      `Are you sure you wish to decrypt Hint #${orderNo}?`,
-    )
-  ) {
+async function confirmRevealHint(orderNo) {
+  const confirmed = await Utils.confirm(
+    "Decrypt Hint",
+    `Are you sure you wish to decrypt Hint #${orderNo}?`
+  );
+  if (confirmed) {
     Utils.revealHint(questionUid, orderNo);
     renderHintsModal();
     updateHintsCounterOnScreen();

@@ -185,7 +185,7 @@ async function loadTeamDetails(qrId) {
         Utils.showToast('Team coordinates decrypted.');
     } catch (error) {
         console.error('Failed to load team details:', error);
-        alert('Lookup Failed: ' + error.message);
+        Utils.showToast('Lookup Failed: ' + error.message, 'error');
         teamCard.style.display = 'none';
         submissionCard.style.display = 'none';
     }
@@ -203,7 +203,7 @@ async function handleStatusUpdate(event) {
         await loadTeamDetails(currentTeamQrId);
     } catch (err) {
         console.error('Failed to update status:', err);
-        alert('Status Update Failed: ' + err.message);
+        Utils.showToast('Status Update Failed: ' + err.message, 'error');
     }
 }
 
@@ -211,7 +211,7 @@ async function handleStatusUpdate(event) {
 async function handleQuestionSubmission(event) {
     event.preventDefault();
     if (!currentTeamQrId || !currentTeamId) {
-        alert('No active team loaded.');
+        Utils.showToast('No active team loaded.', 'warning');
         return;
     }
 
@@ -277,7 +277,7 @@ async function handleQuestionSubmission(event) {
         await loadTeamDetails(currentTeamQrId);
     } catch (err) {
         console.error('Submission failed:', err);
-        alert('Submission Failed: ' + err.message);
+        Utils.showToast('Submission Failed: ' + err.message, 'error');
     }
 }
 

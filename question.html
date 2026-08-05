@@ -71,6 +71,7 @@
             right: 0;
             top: 50%;
             transform: translateY(-50%);
+            z-index: 1005;
         }
 
         .menu-btn {
@@ -98,7 +99,7 @@
         .menu-dropdown {
             position: absolute;
             right: 0;
-            top: 32px;
+            top: 30px;
             background-color: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: var(--radius);
@@ -106,8 +107,8 @@
             display: none;
             flex-direction: column;
             min-width: 130px;
-            z-index: 100;
-            overflow: hidden;
+            z-index: 1010;
+            overflow: visible;
             padding: 0.25rem 0;
         }
 
@@ -138,7 +139,7 @@
         <div class="mission-container">
             
             <!-- Logo Header -->
-            <div class="header-logo" style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%;">
+            <div class="header-logo" style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%; z-index: 1000;">
                 <div class="header-logo-text">CODE<span>QUEST</span></div>
                 
                 <!-- Menu / Hamburger Button -->

@@ -295,20 +295,25 @@ async function editQuestion(id) {
 
     } catch (err) {
         console.error('Failed to load edit model:', err);
-        alert('Load Edit Failed: ' + err.message);
+        Utils.showToast('Load Edit Failed: ' + err.message, 'error');
     }
 }
 
 // CRUD: Delete Question
 async function deleteQuestion(id) {
-    if (confirm('Are you absolutely sure you want to delete this challenge? This action is permanent.')) {
+    const confirmed = await Utils.confirm(
+        'Delete Question',
+        'Are you absolutely sure you want to delete this challenge? This action is permanent.',
+        { isDanger: true }
+    );
+    if (confirmed) {
         try {
             await CodeQuestAPI.deleteQuestion(id);
             Utils.showToast('Question deleted successfully.');
             loadQuestionsList();
         } catch (error) {
             console.error('Delete question failed:', error);
-            alert('Delete Failed: ' + error.message);
+            Utils.showToast('Delete Failed: ' + error.message, 'error');
         }
     }
 }
@@ -708,7 +713,7 @@ async function handleFormSubmit(event) {
                 Utils.showToast('Question image uploaded.');
             } catch (imgErr) {
                 console.error('Image upload failed:', imgErr);
-                alert('Warning: Question details saved, but image upload failed: ' + imgErr.message);
+                Utils.showToast('Warning: Question details saved, but image upload failed: ' + imgErr.message, 'warning');
             }
         }
 
@@ -716,7 +721,7 @@ async function handleFormSubmit(event) {
         loadQuestionsList();
     } catch (err) {
         console.error('Error saving question:', err);
-        alert('Save Question Failed: ' + err.message);
+        Utils.showToast('Save Question Failed: ' + err.message, 'error');
     } finally {
         saveBtn.innerHTML = originalText;
         saveBtn.disabled = false;
@@ -1047,7 +1052,7 @@ async function loadAdminTeamDetails(qrId) {
         Utils.showToast('Team coordinate loaded.');
     } catch (error) {
         console.error('Failed to load admin team details:', error);
-        alert('Lookup Failed: ' + error.message);
+        Utils.showToast('Lookup Failed: ' + error.message, 'error');
         teamCard.style.display = 'none';
     }
 }
@@ -1123,7 +1128,7 @@ async function saveAdminTeamChanges(event) {
         Utils.showToast('Team changes saved successfully.');
     } catch (err) {
         console.error('Failed to save team details:', err);
-        alert('Save Failed: ' + err.message);
+        Utils.showToast('Save Failed: ' + err.message, 'error');
     } finally {
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalText;
