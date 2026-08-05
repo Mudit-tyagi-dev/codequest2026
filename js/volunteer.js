@@ -242,6 +242,27 @@ async function handleQuestionSubmission(event) {
         const prevHints = parseInt(localStorage.getItem(`codequest_team_${currentTeamId}_hints_used`) || '0');
         localStorage.setItem(`codequest_team_${currentTeamId}_hints_used`, prevHints + hintsUsed);
 
+        // Save local history record to localStorage
+        const historyKey = `cq_team_history_${currentTeamQrId}`;
+        const localHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        
+        // Try to compute time taken if start time is present in localStorage
+        const startSec = parseInt(localStorage.getItem(`cq_timer_start_${questionId}`)) || null;
+        const timeTakenVal = startSec ? (Math.floor(Date.now() / 1000) - startSec) : null;
+
+        const historyItem = {
+            question_id: questionId,
+            status: rawStatus, // solved, skipped, wrong
+            hints_used: hintsUsed,
+            attempts: attempts,
+            points_awarded: pointsAwarded,
+            note: note,
+            time_taken: timeTakenVal,
+            timestamp: new Date().toISOString()
+        };
+        localHistory.push(historyItem);
+        localStorage.setItem(historyKey, JSON.stringify(localHistory));
+
         Utils.showToast('Question submission recorded successfully.');
         
         // Reset form fields

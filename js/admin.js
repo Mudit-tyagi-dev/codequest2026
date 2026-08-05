@@ -71,6 +71,7 @@ function renderQuestions(questions) {
         questions.forEach(q => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
+                <td style="font-family: monospace; font-size: 0.85rem; font-weight: 700;">${q.id}</td>
                 <td style="font-weight: 600; color: var(--text-main);">${escapeHtml(q.title)}</td>
                 <td><span class="badge badge-primary" style="font-size: 0.65rem; text-transform: capitalize;">${q.question_type}</span></td>
                 <td><span class="badge badge-accent" style="font-size: 0.65rem; color: #1e293b;">${q.points} Pts</span></td>
@@ -95,7 +96,7 @@ function renderQuestions(questions) {
     } else {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center" style="padding: 3rem;">
+                <td colspan="7" class="text-center" style="padding: 3rem;">
                     <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📭</div>
                     <h4 style="color: var(--text-muted);">No Questions Found</h4>
                 </td>
@@ -935,13 +936,22 @@ async function loadAdminTeamDetails(qrId) {
         populateQuestionsDropdown();
         document.getElementById('ad-question-select').value = teamData.current_question || (localQuestion !== 'None' ? localQuestion : '');
 
-        // Populate Checkpoint History using ONLY backend fields
+        // Populate Submission History using backend first, then local storage fallback
         const historyContainer = document.getElementById('ad-t-history-container');
         historyContainer.innerHTML = '';
 
-        const historyItems = teamData.submissions || teamData.history || teamData.checkpoint_history || teamData.checkpoints;
+        let historyItems = teamData.submissions || teamData.history || teamData.checkpoint_history || teamData.checkpoints;
+        const isBackendHistory = Array.isArray(historyItems) && historyItems.length > 0;
+
+        if (!isBackendHistory) {
+            // Check local storage history fallback
+            const historyKey = `cq_team_history_${qrId}`;
+            const localHistVal = localStorage.getItem(historyKey) || localStorage.getItem(`cq_team_history_${teamData.qr_id}`) || '[]';
+            historyItems = JSON.parse(localHistVal);
+        }
+
         if (Array.isArray(historyItems) && historyItems.length > 0) {
-            // Sort by timestamp latest first
+            // Sort by timestamp latest first (newest first)
             const sortedHistory = [...historyItems].sort((a, b) => {
                 const timeA = new Date(a.timestamp || a.created_at || 0).getTime();
                 const timeB = new Date(b.timestamp || b.created_at || 0).getTime();
@@ -961,14 +971,6 @@ async function loadAdminTeamDetails(qrId) {
 
                 let html = '';
 
-                // Checkpoint Number
-                const checkpointNo = item.checkpoint_no || item.checkpoint_number || item.checkpoint;
-                if (checkpointNo !== undefined && checkpointNo !== null) {
-                    html += `<div style="font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 0.25rem;">Checkpoint #${checkpointNo}</div>`;
-                } else {
-                    html += `<div style="font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 0.25rem;">Checkpoint Submission</div>`;
-                }
-
                 // Question ID
                 const questionId = item.question_id || item.qid;
                 if (questionId !== undefined && questionId !== null) {
@@ -979,18 +981,6 @@ async function loadAdminTeamDetails(qrId) {
                 const status = item.status || item.submission_status;
                 if (status !== undefined && status !== null) {
                     html += `<div><strong>Status:</strong> <span style="text-transform: capitalize; font-weight: 600;">${escapeHtml(String(status))}</span></div>`;
-                }
-
-                // Time Taken
-                const timeTaken = item.time_taken || item.duration || item.elapsed_time;
-                if (timeTaken !== undefined && timeTaken !== null) {
-                    let timeStr = String(timeTaken);
-                    if (typeof timeTaken === 'number') {
-                        const mins = Math.floor(timeTaken / 60);
-                        const secs = timeTaken % 60;
-                        timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                    }
-                    html += `<div><strong>Time Taken:</strong> ${escapeHtml(timeStr)}</div>`;
                 }
 
                 // Hints Used
@@ -1005,23 +995,43 @@ async function loadAdminTeamDetails(qrId) {
                     html += `<div><strong>Attempts:</strong> ${escapeHtml(String(attempts))}</div>`;
                 }
 
-                // Points Awarded
-                const points = item.points_awarded || item.points || item.score;
+                // Points Awarded / Points
+                const points = item.points_awarded !== undefined ? item.points_awarded : (item.points !== undefined ? item.points : item.score);
                 if (points !== undefined && points !== null) {
-                    html += `<div><strong>Points Awarded:</strong> ${escapeHtml(String(points))}</div>`;
+                    html += `<div><strong>Points:</strong> ${escapeHtml(String(points))}</div>`;
                 }
 
-                // Volunteer Notes
+                // Time Taken
+                const timeTaken = item.time_taken || item.duration || item.elapsed_time;
+                if (timeTaken !== undefined && timeTaken !== null) {
+                    let timeStr = String(timeTaken);
+                    if (typeof timeTaken === 'number') {
+                        const mins = Math.floor(timeTaken / 60);
+                        const secs = timeTaken % 60;
+                        timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                    }
+                    html += `<div><strong>Time Taken:</strong> ${escapeHtml(timeStr)}</div>`;
+                }
+
+                // Volunteer Note
                 const notes = item.note || item.notes || item.volunteer_notes || item.comment;
                 if (notes !== undefined && notes !== null && String(notes).trim().length > 0) {
-                    html += `<div style="background-color: var(--card-bg); border-left: 3px solid var(--accent); padding: 0.35rem 0.5rem; margin-top: 0.25rem; font-style: italic;"><strong>Volunteer Notes:</strong> ${escapeHtml(String(notes))}</div>`;
+                    html += `<div style="background-color: var(--card-bg); border-left: 3px solid var(--accent); padding: 0.35rem 0.5rem; margin-top: 0.25rem; font-style: italic;"><strong>Volunteer Note:</strong> ${escapeHtml(String(notes))}</div>`;
                 }
 
                 // Timestamp
                 const timestamp = item.timestamp || item.created_at;
                 if (timestamp !== undefined && timestamp !== null) {
-                    const dateStr = new Date(timestamp).toLocaleString();
-                    html += `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; border-top: 1px solid var(--border); padding-top: 0.25rem;"><strong>Timestamp:</strong> ${escapeHtml(dateStr)}</div>`;
+                    const dateOptions = { 
+                        day: '2-digit', 
+                        month: 'short', 
+                        year: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: true 
+                    };
+                    const dateStr = new Date(timestamp).toLocaleString('en-GB', dateOptions);
+                    html += `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; border-top: 1px solid var(--border); padding-top: 0.25rem;"><strong>Submitted:</strong> ${escapeHtml(dateStr)}</div>`;
                 }
 
                 itemEl.innerHTML = html;
