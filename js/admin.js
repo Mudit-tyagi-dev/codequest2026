@@ -37,7 +37,7 @@ async function loadQuestionsList() {
 
     try {
         const questions = await CodeQuestAPI.getQuestions();
-        console.log("Questions received by admin.js:", questions);
+        // console.log("Questions received by admin.js:", questions);
 
         let questionsArray = [];
         if (Array.isArray(questions)) {
@@ -52,11 +52,11 @@ async function loadQuestionsList() {
             }
         }
 
-        console.log("Parsed Questions:", questionsArray);
+        // console.log("Parsed Questions:", questionsArray);
         questionsList = questionsArray;
         populateQuestionsDropdown();
         
-        console.log("Rendering Questions:", questionsArray);
+        // console.log("Rendering Questions:", questionsArray);
         renderQuestions(questionsArray);
     } catch (error) {
         console.error('Failed to load questions:', error);
@@ -71,7 +71,7 @@ async function loadQuestionsList() {
 }
 
 function renderQuestions(questions) {
-    console.log("renderQuestions input:", questions);
+    // console.log("renderQuestions input:", questions);
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
 
@@ -269,6 +269,8 @@ async function editQuestion(id) {
         document.getElementById('title').value = q.title;
         document.getElementById('description').value = q.description;
         document.getElementById('question_type').value = q.question_type;
+        // document.getElementById('image_url').value = q.image_url;
+
         document.getElementById('points').value = q.points;
         document.getElementById('time_limit_seconds').value = q.time_limit_seconds || '';
         document.getElementById('is_active').checked = q.is_active;
@@ -839,7 +841,7 @@ async function tickAdminScan() {
         }
 
         if (decodedCode) {
-            console.log('Decoded admin QR:', decodedCode);
+            // console.log('Decoded admin QR:', decodedCode);
             const scannedUuid = extractUuidForAdmin(decodedCode);
             if (scannedUuid) {
                 stopAdminCameraScan();

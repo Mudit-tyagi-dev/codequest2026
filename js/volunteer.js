@@ -90,7 +90,7 @@ async function tickScan() {
         }
 
         if (decodedCode) {
-            console.log('Scanned QR:', decodedCode);
+            // console.log('Scanned QR:', decodedCode);
             const scannedUuid = extractUuid(decodedCode);
             if (scannedUuid) {
                 stopCameraScan();

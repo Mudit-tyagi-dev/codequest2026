@@ -37,7 +37,7 @@ async function handleResponse(response) {
     
     try {
         const data = await response.json();
-        console.log("Raw API Response:", data);
+        // console.log("Raw API Response:", data);
         return data;
     } catch (e) {
         return {};
@@ -59,8 +59,8 @@ async function request(path, options = {}) {
     
     try {
         const response = await fetch(url, requestOptions);
-        console.log("Request URL:", url);
-        console.log("Status:", response.status);
+        // console.log("Request URL:", url);
+        // console.log("Status:", response.status);
         return await handleResponse(response);
     } catch (error) {
         console.error(`API Request to ${url} failed:`, error);
@@ -74,7 +74,7 @@ const CodeQuestAPI = {
     async getQuestions() {
         try {
             const questions = await request('/admin/questions/');
-            console.log("Questions from API:", questions);
+            // console.log("Questions from API:", questions);
             return questions;
         } catch (error) {
             if (error.message === 'Question not found') {
