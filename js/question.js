@@ -154,10 +154,11 @@ function renderQuestion(q) {
             </div>
         `;
   } else {
+    const isQna = q.question_type === "qna";
     answerHtml = `
             <div class="form-group">
                 <label for="answer-input" class="form-label">Enter Mission Solution</label>
-                <textarea id="answer-input" class="form-control" placeholder="Type your decryption logic or solution here..." required>${escapeHtml(inProgressAns)}</textarea>
+                <textarea id="answer-input" class="form-control" placeholder="Type your decryption logic or solution here..." ${isQna ? "" : "required"}>${escapeHtml(inProgressAns)}</textarea>
             </div>
         `;
   }
@@ -363,7 +364,8 @@ function submitAnswer(e) {
   e.preventDefault();
   const answerVal = document.getElementById("answer-input").value.trim();
 
-  if (!answerVal) {
+  const isQna = activeQuestion && activeQuestion.question_type === "qna";
+  if (!answerVal && !isQna) {
     Utils.showToast("Please enter a decryption solution before submitting!", "warning");
     return;
   }

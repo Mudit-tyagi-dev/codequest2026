@@ -3,6 +3,7 @@ let scanAnimationId = null;
 let currentTeamId = null;
 let currentTeamQrId = null;
 let activeTeamData = null;
+let originalSubmissionCardHTML = null;
 
 // Start camera stream for QR scanning
 async function startCameraScan() {
@@ -177,7 +178,8 @@ async function loadTeamDetails(qrId) {
         const finalPoints = teamData.total_points !== undefined ? teamData.total_points : 0;
 
         document.getElementById('t-points').textContent = finalPoints;
-        document.getElementById('t-attempted').textContent = teamData.attempted_questions !== undefined ? teamData.attempted_questions : 0;
+        const attempted = parseInt(teamData.attempted_questions !== undefined ? teamData.attempted_questions : 0) || 0;
+        document.getElementById('t-attempted').textContent = attempted;
 
         // Local storage fallbacks for question details not returned in direct API
         const localQuestion = localStorage.getItem(`codequest_team_${teamData.id}_current_question`) || 'None';
@@ -189,6 +191,54 @@ async function loadTeamDetails(qrId) {
         let mappedStatus = (teamData.status || 'ongoing').toLowerCase();
         if (mappedStatus === 'winner') mappedStatus = 'completed';
         document.getElementById('team-status-select').value = mappedStatus;
+
+        if (attempted >= 7) {
+            // Disable the submission form and show the success screen instead
+            submissionCard.innerHTML = `
+                <div style="text-align: center; padding: 1.5rem 1rem; background: var(--card-bg);">
+                    <div style="font-size: 3.5rem; margin-bottom: 1rem;">🎉</div>
+                    <h3 style="color: var(--primary); margin-bottom: 0.75rem; font-weight: 800;">Congratulations!</h3>
+                    <p style="color: var(--text-main); font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; line-height: 1.4;">
+                        You have successfully completed all 7 checkpoints.
+                    </p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.4;">
+                        Please proceed to <strong style="color: var(--primary);">📍 AG-3 Lab</strong> for the Final Coding Round.
+                    </p>
+                    <div style="color: var(--error); font-weight: 700; font-size: 0.85rem; margin-bottom: 1.5rem; background-color: rgba(239, 68, 68, 0.05); padding: 0.75rem; border: 1px dashed var(--error); border-radius: var(--radius-sm); line-height: 1.4;">
+                        This team has already completed all checkpoints.
+                        <br>
+                        Please direct them to AG-3 Lab for the Final Coding Round.
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="closeTeamDetails()" style="width: auto; padding-left: 2rem; padding-right: 2rem; margin: 0 auto; display: block;">
+                        Go to AG-3 Lab
+                    </button>
+                </div>
+            `;
+            // Disable status form elements
+            document.getElementById('team-status-select').disabled = true;
+            const saveStatusBtn = document.querySelector('#team-card button[type="submit"]');
+            if (saveStatusBtn) saveStatusBtn.disabled = true;
+        } else {
+            // Restore original submission card HTML
+            if (originalSubmissionCardHTML) {
+                submissionCard.innerHTML = originalSubmissionCardHTML;
+            }
+            // Re-enable status form elements
+            document.getElementById('team-status-select').disabled = false;
+            const saveStatusBtn = document.querySelector('#team-card button[type="submit"]');
+            if (saveStatusBtn) saveStatusBtn.disabled = false;
+            
+            // Rebind the input event listeners to the new form elements!
+            const questionIdInput = document.getElementById('sub-question-id');
+            const hintsUsedInput = document.getElementById('sub-hints-used');
+
+            if (questionIdInput) {
+                questionIdInput.addEventListener('input', updateSubmissionPreview);
+            }
+            if (hintsUsedInput) {
+                hintsUsedInput.addEventListener('input', updateSubmissionPreview);
+            }
+        }
 
         // Show Team and Submission cards
         teamCard.style.display = 'block';
@@ -224,6 +274,11 @@ async function handleQuestionSubmission(event) {
     event.preventDefault();
     if (!currentTeamQrId || !currentTeamId) {
         Utils.showToast('No active team loaded.', 'warning');
+        return;
+    }
+
+    if (activeTeamData && activeTeamData.attempted_questions !== undefined && parseInt(activeTeamData.attempted_questions) >= 7) {
+        Utils.showToast('This team has already completed all checkpoints. Submission blocked.', 'error');
         return;
     }
 
@@ -346,7 +401,24 @@ async function updateSubmissionPreview() {
     }
 }
 
+function closeTeamDetails() {
+    const teamCard = document.getElementById('team-card');
+    const submissionCard = document.getElementById('submission-card');
+    if (teamCard) teamCard.style.display = 'none';
+    if (submissionCard) submissionCard.style.display = 'none';
+    currentTeamId = null;
+    currentTeamQrId = null;
+    activeTeamData = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.closeTeamDetails = closeTeamDetails;
+
 document.addEventListener('DOMContentLoaded', () => {
+    const submissionCard = document.getElementById('submission-card');
+    if (submissionCard) {
+        originalSubmissionCardHTML = submissionCard.innerHTML;
+    }
+
     const questionIdInput = document.getElementById('sub-question-id');
     const hintsUsedInput = document.getElementById('sub-hints-used');
 
