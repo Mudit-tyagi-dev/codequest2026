@@ -164,21 +164,17 @@ async function loadTeamDetails(qrId) {
         document.getElementById('t-id').textContent = teamData.id || '-';
         document.getElementById('t-status').textContent = teamData.status || 'ongoing';
         let totalHints = 0;
-        let totalPenalty = 0;
         const history = teamData.submissions || teamData.history || teamData.checkpoint_history || teamData.checkpoints || [];
         if (history.length > 0) {
             history.forEach(item => {
                 const h = parseInt(item.hints_used || item.hint_count || item.hints || 0);
                 totalHints += h;
-                totalPenalty += Utils.calculateHintPenalty(h);
             });
         } else {
             totalHints = parseInt(localStorage.getItem(`codequest_team_${teamData.id}_hints_used`) || '0');
-            totalPenalty = Utils.calculateHintPenalty(totalHints);
         }
 
-        const backendPoints = teamData.total_points !== undefined ? teamData.total_points : 0;
-        const finalPoints = backendPoints - totalPenalty;
+        const finalPoints = teamData.total_points !== undefined ? teamData.total_points : 0;
 
         document.getElementById('t-points').textContent = finalPoints;
         document.getElementById('t-attempted').textContent = teamData.attempted_questions !== undefined ? teamData.attempted_questions : 0;
@@ -289,6 +285,9 @@ async function handleQuestionSubmission(event) {
         document.getElementById('sub-points-awarded').value = '0';
         document.getElementById('sub-note').value = '';
 
+        const previewContainer = document.getElementById('sub-calc-preview');
+        if (previewContainer) previewContainer.style.display = 'none';
+
         // Reload details
         await loadTeamDetails(currentTeamQrId);
     } catch (err) {
@@ -304,5 +303,57 @@ window.loadTeamDetails = loadTeamDetails;
 window.addEventListener('storage', (e) => {
     if (currentTeamQrId && e.key && (e.key.startsWith('cq_hints_') || e.key.includes('hints_used') || e.key.includes('history'))) {
         loadTeamDetails(currentTeamQrId);
+    }
+});
+
+async function updateSubmissionPreview() {
+    const questionIdInput = document.getElementById('sub-question-id');
+    const hintsUsedInput = document.getElementById('sub-hints-used');
+    const pointsAwardedInput = document.getElementById('sub-points-awarded');
+    const previewContainer = document.getElementById('sub-calc-preview');
+
+    if (!questionIdInput || !hintsUsedInput || !pointsAwardedInput || !previewContainer) return;
+
+    const questionIdVal = questionIdInput.value.trim();
+    const hintsUsedVal = parseInt(hintsUsedInput.value) || 0;
+
+    if (!questionIdVal) {
+        previewContainer.style.display = 'none';
+        return;
+    }
+
+    try {
+        const question = await CodeQuestAPI.getQuestion(parseInt(questionIdVal));
+        if (question) {
+            const originalPoints = question.points !== undefined ? question.points : 0;
+            const penalty = Utils.calculateHintPenalty(hintsUsedVal);
+            const finalPoints = Math.max(0, originalPoints - penalty);
+
+            document.getElementById('preview-question-id').textContent = question.id;
+            document.getElementById('preview-original-points').textContent = originalPoints;
+            document.getElementById('preview-hints-used').textContent = hintsUsedVal;
+            document.getElementById('preview-hint-penalty').textContent = penalty > 0 ? `-${penalty}` : `0`;
+            document.getElementById('preview-final-points').textContent = finalPoints;
+
+            pointsAwardedInput.value = finalPoints;
+            previewContainer.style.display = 'flex';
+        } else {
+            previewContainer.style.display = 'none';
+        }
+    } catch (err) {
+        console.error('Failed to fetch question for preview:', err);
+        previewContainer.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const questionIdInput = document.getElementById('sub-question-id');
+    const hintsUsedInput = document.getElementById('sub-hints-used');
+
+    if (questionIdInput) {
+        questionIdInput.addEventListener('input', updateSubmissionPreview);
+    }
+    if (hintsUsedInput) {
+        hintsUsedInput.addEventListener('input', updateSubmissionPreview);
     }
 });

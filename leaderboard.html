@@ -160,24 +160,20 @@
                     return fullTeam;
                 }));
 
-                // Calculate final points (after hint deductions) and total hints used
+                // Calculate final points (using backend's saved Points Awarded) and total hints used
                 const calculatedTeams = enrichedLeaderboard.map(t => {
                     let totalHints = 0;
-                    let totalPenalty = 0;
                     const history = t.submissions || t.history || t.checkpoint_history || t.checkpoints || [];
                     if (history.length > 0) {
                         history.forEach(item => {
                             const h = parseInt(item.hints_used || item.hint_count || item.hints || 0);
                             totalHints += h;
-                            totalPenalty += Utils.calculateHintPenalty(h);
                         });
                     } else {
                         // Fallback to local storage if no history
                         totalHints = parseInt(localStorage.getItem(`codequest_team_${t.team_id || t.id}_hints_used`) || '0');
-                        totalPenalty = Utils.calculateHintPenalty(totalHints);
                     }
-                    const backendPoints = t.total_points || 0;
-                    const finalPoints = backendPoints - totalPenalty;
+                    const finalPoints = t.total_points !== undefined ? t.total_points : 0;
                     return {
                         ...t,
                         finalPoints,

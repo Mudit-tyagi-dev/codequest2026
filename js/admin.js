@@ -977,6 +977,13 @@ async function loadAdminTeamDetails(qrId) {
             adHintsUsedEl.textContent = totalHintsUsed;
         }
 
+        // Show Final Points Awarded (total points from backend)
+        const finalPoints = teamData.total_points !== undefined ? teamData.total_points : 0;
+        const adPointsEl = document.getElementById('ad-t-points');
+        if (adPointsEl) {
+            adPointsEl.textContent = finalPoints;
+        }
+
         if (Array.isArray(historyItems) && historyItems.length > 0) {
             // Sort by timestamp latest first (newest first)
             const sortedHistory = [...historyItems].sort((a, b) => {
@@ -1025,7 +1032,7 @@ async function loadAdminTeamDetails(qrId) {
                 // Points Awarded / Points
                 const points = item.points_awarded !== undefined ? item.points_awarded : (item.points !== undefined ? item.points : item.score);
                 if (points !== undefined && points !== null) {
-                    html += `<div><strong>Points:</strong> ${escapeHtml(String(points))}</div>`;
+                    html += `<div><strong>Final Points Awarded:</strong> ${escapeHtml(String(points))}</div>`;
                 }
 
                 // Time Taken
