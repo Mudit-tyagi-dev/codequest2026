@@ -6,6 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTeamsList();
 });
 
+// Real-time update on localStorage change
+window.addEventListener('storage', (e) => {
+    if (adminCurrentTeamQrId && e.key && (e.key.startsWith('cq_hints_') || e.key.includes('hints_used') || e.key.includes('history'))) {
+        loadAdminTeamDetails(adminCurrentTeamQrId);
+        loadTeamsList();
+    }
+});
+
 // Switch Tab logic
 function switchTab(tabId) {
     // Update button states
@@ -953,6 +961,20 @@ async function loadAdminTeamDetails(qrId) {
             const historyKey = `cq_team_history_${qrId}`;
             const localHistVal = localStorage.getItem(historyKey) || localStorage.getItem(`cq_team_history_${teamData.qr_id}`) || '[]';
             historyItems = JSON.parse(localHistVal);
+        }
+
+        // Compute and show total hints used
+        let totalHintsUsed = 0;
+        if (Array.isArray(historyItems)) {
+            historyItems.forEach(item => {
+                totalHintsUsed += parseInt(item.hints_used || item.hint_count || item.hints || 0);
+            });
+        } else {
+            totalHintsUsed = parseInt(localStorage.getItem(`codequest_team_${teamData.id}_hints_used`) || '0');
+        }
+        const adHintsUsedEl = document.getElementById('ad-t-hints-used');
+        if (adHintsUsedEl) {
+            adHintsUsedEl.textContent = totalHintsUsed;
         }
 
         if (Array.isArray(historyItems) && historyItems.length > 0) {

@@ -163,15 +163,31 @@ async function loadTeamDetails(qrId) {
         document.getElementById('t-leader').textContent = teamData.leader_name || 'None';
         document.getElementById('t-id').textContent = teamData.id || '-';
         document.getElementById('t-status').textContent = teamData.status || 'ongoing';
-        document.getElementById('t-points').textContent = teamData.total_points !== undefined ? teamData.total_points : 0;
+        let totalHints = 0;
+        let totalPenalty = 0;
+        const history = teamData.submissions || teamData.history || teamData.checkpoint_history || teamData.checkpoints || [];
+        if (history.length > 0) {
+            history.forEach(item => {
+                const h = parseInt(item.hints_used || item.hint_count || item.hints || 0);
+                totalHints += h;
+                totalPenalty += Utils.calculateHintPenalty(h);
+            });
+        } else {
+            totalHints = parseInt(localStorage.getItem(`codequest_team_${teamData.id}_hints_used`) || '0');
+            totalPenalty = Utils.calculateHintPenalty(totalHints);
+        }
+
+        const backendPoints = teamData.total_points !== undefined ? teamData.total_points : 0;
+        const finalPoints = backendPoints - totalPenalty;
+
+        document.getElementById('t-points').textContent = finalPoints;
         document.getElementById('t-attempted').textContent = teamData.attempted_questions !== undefined ? teamData.attempted_questions : 0;
 
         // Local storage fallbacks for question details not returned in direct API
         const localQuestion = localStorage.getItem(`codequest_team_${teamData.id}_current_question`) || 'None';
-        const localHintsUsed = localStorage.getItem(`codequest_team_${teamData.id}_hints_used`) || '0';
 
         document.getElementById('t-current-question').textContent = localQuestion;
-        document.getElementById('t-hints-used').textContent = localHintsUsed;
+        document.getElementById('t-hints-used').textContent = totalHints;
 
         // Status Dropdown Setup
         let mappedStatus = (teamData.status || 'ongoing').toLowerCase();
@@ -283,3 +299,10 @@ async function handleQuestionSubmission(event) {
 
 // Global hook for mock/console scanning
 window.loadTeamDetails = loadTeamDetails;
+
+// Real-time update on localStorage change
+window.addEventListener('storage', (e) => {
+    if (currentTeamQrId && e.key && (e.key.startsWith('cq_hints_') || e.key.includes('hints_used') || e.key.includes('history'))) {
+        loadTeamDetails(currentTeamQrId);
+    }
+});

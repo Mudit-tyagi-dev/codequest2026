@@ -269,6 +269,14 @@ const Utils = {
         if (onRetry) {
             document.getElementById('retry-btn').addEventListener('click', onRetry);
         }
+    },
+
+    calculateHintPenalty(hintsUsed) {
+        let penalty = 0;
+        for (let i = 1; i <= hintsUsed; i++) {
+            penalty += Math.max(0, i - 1);
+        }
+        return penalty;
     }
 };
 
