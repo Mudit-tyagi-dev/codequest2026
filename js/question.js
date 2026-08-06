@@ -454,7 +454,6 @@ function editSubmittedAnswer() {
   loadQuestion();
 }
 
-/* Hints Modal Controls */
 function openHintsModal() {
   renderHintsModal();
   Utils.openModal("hint-modal-overlay");
@@ -489,20 +488,47 @@ function renderHintsModal() {
                         </div>
                     `;
                 } else {
-                  return `
-                        <div class="hint-item locked">
+                  // Check if previous hint has been revealed
+                  const isAvailable = hint.order_no === 1 || revealedIndices.includes(hint.order_no - 1);
+                  const cost = hint.order_no - 1;
+
+                  if (isAvailable) {
+                    const costText = cost === 0 
+                      ? "<strong>FREE</strong><br>(No Point Deduction)" 
+                      : `<strong>Cost: -${cost} Point${cost > 1 ? 's' : ''}</strong>`;
+
+                    return `
+                        <div class="hint-item locked" style="border: 1px dashed var(--accent);">
                             <div class="hint-header">
-                                <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
-                                    Hint #${hint.order_no} (Locked)
+                                <span style="font-weight: 700; color: var(--accent-dark); font-size: 0.85rem; text-transform: uppercase;">
+                                    Hint #${hint.order_no} (Available)
                                 </span>
                             </div>
-                            <div style="margin-top: 0.5rem;">
+                            <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                    ${costText}
+                                </div>
                                 <button class="btn btn-accent btn-sm" onclick="confirmRevealHint(${hint.order_no})">
-                                    Decrypt Hint #${hint.order_no}
+                                    Unlock Hint #${hint.order_no}
                                 </button>
                             </div>
                         </div>
                     `;
+                  } else {
+                    return `
+                        <div class="hint-item locked" style="opacity: 0.6; cursor: not-allowed; border: 1px solid var(--border);">
+                            <div class="hint-header" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.1rem;">🔒</span>
+                                <span style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
+                                    Hint #${hint.order_no} (Locked)
+                                </span>
+                            </div>
+                            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">
+                                Unlock Hint #${hint.order_no - 1} first
+                            </div>
+                        </div>
+                    `;
+                  }
                 }
               })
               .join("")}
@@ -511,10 +537,20 @@ function renderHintsModal() {
 }
 
 async function confirmRevealHint(orderNo) {
+  let confirmMessage = "";
+  if (orderNo === 1) {
+    confirmMessage = "This hint is FREE (No point deduction).\n\nDo you want to continue?";
+  } else {
+    const cost = orderNo - 1;
+    confirmMessage = `This hint will deduct ${cost} point${cost > 1 ? 's' : ''} from your final score.\n\nDo you want to continue?`;
+  }
+
   const confirmed = await Utils.confirm(
-    "Decrypt Hint",
-    `Are you sure you wish to decrypt Hint #${orderNo}?`
+    `Hint ${orderNo}`,
+    confirmMessage,
+    { confirmText: "Unlock", cancelText: "Cancel" }
   );
+
   if (confirmed) {
     Utils.revealHint(questionUid, orderNo);
     renderHintsModal();
