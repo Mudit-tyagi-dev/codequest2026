@@ -408,6 +408,14 @@ function renderSuccessState(answer, timestampStr) {
                     <span style="color: var(--text-main);">${activeQuestion ? activeQuestion.id : 'N/A'}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Question Points:</span>
+                    <span style="color: var(--text-main);">${activeQuestion && activeQuestion.points !== undefined ? activeQuestion.points : 'N/A'}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Participant Response:</span>
+                    <div style="color: var(--text-main); background-color: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; margin-top: 0.25rem; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;">${escapeHtml(answer)}</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
                     <span style="color: var(--text-muted);">Hints Used:</span>
                     <span style="color: var(--text-main);">${hintsCount}</span>
                 </div>
