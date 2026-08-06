@@ -397,6 +397,11 @@ function renderSuccessState(answer, timestampStr) {
 
   const hintsCount = Utils.getRevealedHints(questionUid).length;
 
+  const originalPoints = activeQuestion ? (activeQuestion.points !== undefined ? activeQuestion.points : 0) : 0;
+  const hintPenalty = Utils.calculateHintPenalty(hintsCount);
+  const finalPointsToAward = Math.max(0, originalPoints - hintPenalty);
+  const penaltyStr = hintPenalty > 0 ? `-${hintPenalty}` : '0';
+
   mainContent.innerHTML = `
         <div class="card success-overlay" style="text-align: center; border-top: 4px solid var(--accent); padding: 2rem;">
             <div style="font-size: 4rem; margin-bottom: 1rem;">⏳</div>
@@ -408,16 +413,24 @@ function renderSuccessState(answer, timestampStr) {
                     <span style="color: var(--text-main);">${activeQuestion ? activeQuestion.id : 'N/A'}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
-                    <span style="color: var(--text-muted);">Question Points:</span>
-                    <span style="color: var(--text-main);">${activeQuestion && activeQuestion.points !== undefined ? activeQuestion.points : 'N/A'}</span>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.95rem; font-weight: 600;">
-                    <span style="color: var(--text-muted);">Participant Response:</span>
-                    <div style="color: var(--text-main); background-color: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; margin-top: 0.25rem; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;">${escapeHtml(answer)}</div>
+                    <span style="color: var(--text-muted);">Original Question Points:</span>
+                    <span style="color: var(--text-main);">${originalPoints}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
                     <span style="color: var(--text-muted);">Hints Used:</span>
                     <span style="color: var(--text-main);">${hintsCount}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Hint Penalty:</span>
+                    <span style="color: var(--error);">${penaltyStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 700; border-bottom: 1px dashed var(--border); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
+                    <span style="color: var(--text-muted);">Final Points to Award:</span>
+                    <span style="color: var(--primary);">${finalPointsToAward}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.95rem; font-weight: 600;">
+                    <span style="color: var(--text-muted);">Participant Response:</span>
+                    <div style="color: var(--text-main); background-color: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; margin-top: 0.25rem; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;">${escapeHtml(answer)}</div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600;">
                     <span style="color: var(--text-muted);">Time Taken:</span>
