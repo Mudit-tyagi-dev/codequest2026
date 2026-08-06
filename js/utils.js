@@ -99,16 +99,33 @@ const Utils = {
             .replace(/'/g, '&#039;');
     },
 
-    activeToasts: new Set(),
+    toastQueue: [],
+    isToastActive: false,
+    currentToastMessage: null,
     
-    // Multi-state Toast Notification
-    showToast(message, type = 'success', duration = 3500) {
+    // Queue-based Toast Notification (one visible at a time)
+    showToast(message, type = 'success', duration = 2800) {
         if (!message) return;
-        const msgKey = message.trim();
-        if (this.activeToasts.has(msgKey)) {
-            return; // Prevent duplicate toast
+        
+        const msgText = message.trim();
+        const isDuplicate = this.toastQueue.some(t => t.message === msgText) || 
+                            (this.isToastActive && this.currentToastMessage === msgText);
+        if (isDuplicate) {
+            return;
         }
-        this.activeToasts.add(msgKey);
+
+        this.toastQueue.push({ message: msgText, type, duration });
+        this.processToastQueue();
+    },
+
+    processToastQueue() {
+        if (this.isToastActive || this.toastQueue.length === 0) {
+            return;
+        }
+
+        const current = this.toastQueue.shift();
+        this.currentToastMessage = current.message;
+        this.isToastActive = true;
 
         let container = document.getElementById('toast-container');
         if (!container) {
@@ -118,54 +135,61 @@ const Utils = {
             document.body.appendChild(container);
         }
         
+        container.style.setProperty('z-index', '99999', 'important');
+
         const toast = document.createElement('div');
         toast.className = 'toast';
         
         let icon = '🔔';
-        let bgStyle = 'var(--card-bg)';
-        let borderStyle = '1px solid var(--border)';
-        let borderLeft = '4px solid var(--primary)';
-        let textColor = 'var(--text-main)';
+        let bgStyle = '';
 
-        if (type === 'success') {
+        if (current.type === 'success') {
             icon = '✅';
-            borderLeft = '4px solid var(--success)';
-            bgStyle = 'rgba(16, 185, 129, 0.05)';
-        } else if (type === 'error') {
+            bgStyle = '#10b981';
+        } else if (current.type === 'error') {
             icon = '❌';
-            borderLeft = '4px solid var(--error)';
-            bgStyle = 'rgba(239, 68, 68, 0.05)';
-            duration = duration === 3500 ? 5500 : duration; // Show error longer
-        } else if (type === 'warning') {
+            bgStyle = '#ef4444';
+        } else if (current.type === 'warning') {
             icon = '⚠️';
-            borderLeft = '4px solid var(--accent)';
-            bgStyle = 'rgba(244, 180, 0, 0.05)';
-        } else if (type === 'info') {
+            bgStyle = '#f59e0b';
+        } else if (current.type === 'info') {
             icon = 'ℹ️';
-            borderLeft = '4px solid var(--info)';
-            bgStyle = 'rgba(59, 130, 246, 0.05)';
+            bgStyle = '#3b82f6';
+        } else {
+            bgStyle = '#6366f1';
         }
 
-        toast.style.backgroundColor = bgStyle;
-        toast.style.border = borderStyle;
-        toast.style.borderLeft = borderLeft;
-        toast.style.color = textColor;
-        toast.style.fontWeight = '600';
+        toast.style.setProperty('background-color', bgStyle, 'important');
+        toast.style.setProperty('color', '#ffffff', 'important');
+        toast.style.setProperty('border-left', 'none', 'important');
+        toast.style.setProperty('padding', '0.75rem 1.25rem', 'important');
+        toast.style.setProperty('box-shadow', '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', 'important');
+        
+        if (window.innerWidth <= 768) {
+            toast.style.setProperty('margin', '0 auto', 'important');
+            toast.style.setProperty('width', '100%', 'important');
+            toast.style.setProperty('max-width', '340px', 'important');
+        } else {
+            toast.style.setProperty('margin-left', 'auto', 'important');
+            toast.style.setProperty('margin-right', '0', 'important');
+            toast.style.setProperty('width', '100%', 'important');
+            toast.style.setProperty('max-width', '320px', 'important');
+        }
 
-        toast.innerHTML = `<span style="font-size: 1.1rem; flex-shrink: 0; line-height: 1;">${icon}</span> <span style="flex-grow: 1; line-height: 1.35;">${message}</span>`;
+        toast.innerHTML = `<span style="font-size: 1.1rem; flex-shrink: 0; line-height: 1;">${icon}</span> <span style="flex-grow: 1; line-height: 1.4;">${current.message}</span>`;
         container.appendChild(toast);
         
-        // Animate in
         setTimeout(() => toast.classList.add('show'), 50);
         
-        // Fade out & delete
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
                 toast.remove();
-                this.activeToasts.delete(msgKey);
+                this.currentToastMessage = null;
+                this.isToastActive = false;
+                this.processToastQueue();
             }, 300);
-        }, duration);
+        }, current.duration);
     },
 
     // Promise-based Modern Alert Modal

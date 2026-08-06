@@ -259,6 +259,12 @@ async function handleStatusUpdate(event) {
     if (!currentTeamQrId) return;
 
     const statusVal = document.getElementById('team-status-select').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
     try {
         await CodeQuestAPI.updateVolunteerTeamStatus(currentTeamQrId, statusVal);
         Utils.showToast('Team status updated successfully.');
@@ -266,7 +272,58 @@ async function handleStatusUpdate(event) {
     } catch (err) {
         console.error('Failed to update status:', err);
         Utils.showToast('Status Update Failed: ' + err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Status';
+        }
     }
+}
+
+// Shared validator for volunteer form inputs
+function validateVolunteerInputs({ questionIdStr, hintsUsedStr, attemptsStr, pointsAwardedStr }, originalPoints = null) {
+    // 1. Question ID validation
+    if (!questionIdStr) {
+        return { isValid: false, message: 'Question ID cannot be empty.' };
+    }
+    const questionId = parseFloat(questionIdStr);
+    if (isNaN(questionId) || !Number.isInteger(questionId) || questionId <= 0) {
+        return { isValid: false, message: 'Question ID must be a valid positive integer.' };
+    }
+
+    // 2. Attempts validation
+    if (!attemptsStr) {
+        return { isValid: false, message: 'Attempts cannot be empty.' };
+    }
+    const attempts = parseFloat(attemptsStr);
+    if (isNaN(attempts) || !Number.isInteger(attempts) || attempts < 1 || attempts > 2) {
+        return { isValid: false, message: 'Attempts must be 1 or 2.' };
+    }
+
+    // 3. Hints Used validation
+    if (!hintsUsedStr) {
+        return { isValid: false, message: 'Hints Used cannot be empty.' };
+    }
+    const hintsUsed = parseFloat(hintsUsedStr);
+    if (isNaN(hintsUsed) || !Number.isInteger(hintsUsed) || hintsUsed < 0 || hintsUsed > 3) {
+        return { isValid: false, message: 'Hints Used must be between 0 and 3.' };
+    }
+
+    // 4. Points Awarded validation
+    if (pointsAwardedStr !== undefined && pointsAwardedStr !== null) {
+        if (!pointsAwardedStr) {
+            return { isValid: false, message: 'Points Awarded cannot be empty.' };
+        }
+        const pointsAwarded = parseFloat(pointsAwardedStr);
+        if (isNaN(pointsAwarded) || !Number.isInteger(pointsAwarded) || pointsAwarded < 0) {
+            return { isValid: false, message: 'Points Awarded must be a non-negative integer.' };
+        }
+        if (originalPoints !== null && pointsAwarded > originalPoints) {
+            return { isValid: false, message: `Points Awarded cannot exceed the original Question Points (${originalPoints}).` };
+        }
+    }
+
+    return { isValid: true };
 }
 
 // Handle question submission from Volunteer
@@ -282,12 +339,78 @@ async function handleQuestionSubmission(event) {
         return;
     }
 
-    const questionId = parseInt(document.getElementById('sub-question-id').value);
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+
+    const questionIdInputVal = document.getElementById('sub-question-id').value.trim();
     const rawStatus = document.getElementById('sub-status').value;
-    const attempts = parseInt(document.getElementById('sub-attempts').value);
-    const hintsUsed = parseInt(document.getElementById('sub-hints-used').value);
-    const pointsAwarded = parseInt(document.getElementById('sub-points-awarded').value);
+    const attemptsVal = document.getElementById('sub-attempts').value.trim();
+    const hintsUsedVal = document.getElementById('sub-hints-used').value.trim();
+    const pointsAwardedVal = document.getElementById('sub-points-awarded').value.trim();
     const note = document.getElementById('sub-note').value.trim() || null;
+
+    // Call shared validator
+    let originalPoints = null;
+    try {
+        const qId = parseInt(questionIdInputVal);
+        if (Number.isInteger(qId) && qId > 0) {
+            const question = await CodeQuestAPI.getQuestion(qId);
+            if (question) {
+                originalPoints = question.points !== undefined ? question.points : 0;
+            }
+        }
+    } catch (e) {}
+
+    const validation = validateVolunteerInputs({
+        questionIdStr: questionIdInputVal,
+        hintsUsedStr: hintsUsedVal,
+        attemptsStr: attemptsVal,
+        pointsAwardedStr: pointsAwardedVal
+    }, originalPoints);
+
+    if (!validation.isValid) {
+        Utils.showToast(validation.message, 'error');
+        return;
+    }
+
+    const questionId = parseInt(questionIdInputVal);
+    const attempts = parseInt(attemptsVal);
+    const hintsUsed = parseInt(hintsUsedVal);
+    const pointsAwarded = parseInt(pointsAwardedVal);
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+    }
+
+    // Fetch question to validate pointsAwarded <= question.points
+    try {
+        const question = await CodeQuestAPI.getQuestion(questionId);
+        if (!question) {
+            Utils.showToast('Question ID does not exist.', 'error');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Question';
+            }
+            return;
+        }
+        const originalPointsVal = question.points !== undefined ? question.points : 0;
+        if (pointsAwarded > originalPointsVal) {
+            Utils.showToast(`Points Awarded cannot exceed the original Question Points (${originalPointsVal}).`, 'error');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Question';
+            }
+            return;
+        }
+    } catch (err) {
+        console.error('Failed to validate question points:', err);
+        Utils.showToast('Failed to validate Question ID / Points with the backend.', 'error');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Question';
+        }
+        return;
+    }
 
     // Map wrong status to failed for the backend schema
     const apiStatus = rawStatus === 'wrong' ? 'failed' : rawStatus;
@@ -348,6 +471,11 @@ async function handleQuestionSubmission(event) {
     } catch (err) {
         console.error('Submission failed:', err);
         Utils.showToast('Submission Failed: ' + err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Question';
+        }
     }
 }
 
@@ -370,10 +498,30 @@ async function updateSubmissionPreview() {
     if (!questionIdInput || !hintsUsedInput || !pointsAwardedInput || !previewContainer) return;
 
     const questionIdVal = questionIdInput.value.trim();
-    const hintsUsedVal = parseInt(hintsUsedInput.value) || 0;
+    const hintsUsedVal = hintsUsedInput.value.trim();
 
     if (!questionIdVal) {
         previewContainer.style.display = 'none';
+        return;
+    }
+
+    // Validate Question ID and Hints Used first
+    const validation = validateVolunteerInputs({
+        questionIdStr: questionIdVal,
+        hintsUsedStr: hintsUsedVal || '0',
+        attemptsStr: '1'
+    });
+
+    if (!validation.isValid) {
+        previewContainer.style.display = 'none';
+        document.getElementById('preview-question-id').textContent = '-';
+        document.getElementById('preview-original-points').textContent = '0';
+        document.getElementById('preview-hints-used').textContent = '0';
+        document.getElementById('preview-hint-penalty').textContent = '0';
+        document.getElementById('preview-final-points').textContent = '0';
+        pointsAwardedInput.value = '0';
+
+        Utils.showToast(validation.message, 'error');
         return;
     }
 
@@ -381,7 +529,7 @@ async function updateSubmissionPreview() {
         const question = await CodeQuestAPI.getQuestion(parseInt(questionIdVal));
         if (question) {
             const originalPoints = question.points !== undefined ? question.points : 0;
-            const penalty = Utils.calculateHintPenalty(hintsUsedVal);
+            const penalty = Utils.calculateHintPenalty(parseInt(hintsUsedVal) || 0);
             const finalPoints = Math.max(0, originalPoints - penalty);
 
             document.getElementById('preview-question-id').textContent = question.id;
@@ -394,10 +542,51 @@ async function updateSubmissionPreview() {
             previewContainer.style.display = 'flex';
         } else {
             previewContainer.style.display = 'none';
+            Utils.showToast('Question ID does not exist.', 'error');
         }
     } catch (err) {
         console.error('Failed to fetch question for preview:', err);
         previewContainer.style.display = 'none';
+    }
+}
+
+async function validateFormInputsRealTime() {
+    const questionIdInput = document.getElementById('sub-question-id');
+    const hintsUsedInput = document.getElementById('sub-hints-used');
+    const attemptsInput = document.getElementById('sub-attempts');
+    const pointsAwardedInput = document.getElementById('sub-points-awarded');
+
+    const questionIdStr = questionIdInput ? questionIdInput.value.trim() : '';
+    const hintsUsedStr = hintsUsedInput ? hintsUsedInput.value.trim() : '';
+    const attemptsStr = attemptsInput ? attemptsInput.value.trim() : '';
+    const pointsAwardedStr = pointsAwardedInput ? pointsAwardedInput.value.trim() : '';
+
+    if (!questionIdStr && !hintsUsedStr && !attemptsStr && !pointsAwardedStr) {
+        return;
+    }
+
+    let originalPoints = null;
+    if (questionIdStr) {
+        const questionId = parseFloat(questionIdStr);
+        if (Number.isInteger(questionId) && questionId > 0) {
+            try {
+                const question = await CodeQuestAPI.getQuestion(questionId);
+                if (question) {
+                    originalPoints = question.points !== undefined ? question.points : 0;
+                }
+            } catch (e) {}
+        }
+    }
+
+    const validation = validateVolunteerInputs({
+        questionIdStr,
+        hintsUsedStr,
+        attemptsStr,
+        pointsAwardedStr
+    }, originalPoints);
+
+    if (!validation.isValid) {
+        Utils.showToast(validation.message, 'error');
     }
 }
 
@@ -413,19 +602,35 @@ function closeTeamDetails() {
 }
 window.closeTeamDetails = closeTeamDetails;
 
+function bindVolunteerFormListeners() {
+    const questionIdInput = document.getElementById('sub-question-id');
+    const hintsUsedInput = document.getElementById('sub-hints-used');
+    const attemptsInput = document.getElementById('sub-attempts');
+    const pointsAwardedInput = document.getElementById('sub-points-awarded');
+
+    if (questionIdInput) {
+        questionIdInput.addEventListener('input', updateSubmissionPreview);
+        questionIdInput.addEventListener('blur', updateSubmissionPreview);
+    }
+    if (hintsUsedInput) {
+        hintsUsedInput.addEventListener('input', updateSubmissionPreview);
+        hintsUsedInput.addEventListener('blur', updateSubmissionPreview);
+    }
+    if (attemptsInput) {
+        attemptsInput.addEventListener('input', validateFormInputsRealTime);
+        attemptsInput.addEventListener('blur', validateFormInputsRealTime);
+    }
+    if (pointsAwardedInput) {
+        pointsAwardedInput.addEventListener('input', validateFormInputsRealTime);
+        pointsAwardedInput.addEventListener('blur', validateFormInputsRealTime);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const submissionCard = document.getElementById('submission-card');
     if (submissionCard) {
         originalSubmissionCardHTML = submissionCard.innerHTML;
     }
 
-    const questionIdInput = document.getElementById('sub-question-id');
-    const hintsUsedInput = document.getElementById('sub-hints-used');
-
-    if (questionIdInput) {
-        questionIdInput.addEventListener('input', updateSubmissionPreview);
-    }
-    if (hintsUsedInput) {
-        hintsUsedInput.addEventListener('input', updateSubmissionPreview);
-    }
+    bindVolunteerFormListeners();
 });
