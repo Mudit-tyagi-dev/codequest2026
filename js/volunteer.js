@@ -229,15 +229,7 @@ async function loadTeamDetails(qrId) {
             if (saveStatusBtn) saveStatusBtn.disabled = false;
             
             // Rebind the input event listeners to the new form elements!
-            const questionIdInput = document.getElementById('sub-question-id');
-            const hintsUsedInput = document.getElementById('sub-hints-used');
-
-            if (questionIdInput) {
-                questionIdInput.addEventListener('input', updateSubmissionPreview);
-            }
-            if (hintsUsedInput) {
-                hintsUsedInput.addEventListener('input', updateSubmissionPreview);
-            }
+            bindVolunteerFormListeners();
         }
 
         // Show Team and Submission cards
@@ -463,9 +455,6 @@ async function handleQuestionSubmission(event) {
         document.getElementById('sub-points-awarded').value = '0';
         document.getElementById('sub-note').value = '';
 
-        const previewContainer = document.getElementById('sub-calc-preview');
-        if (previewContainer) previewContainer.style.display = 'none';
-
         // Reload details
         await loadTeamDetails(currentTeamQrId);
     } catch (err) {
@@ -488,67 +477,6 @@ window.addEventListener('storage', (e) => {
         loadTeamDetails(currentTeamQrId);
     }
 });
-
-async function updateSubmissionPreview() {
-    const questionIdInput = document.getElementById('sub-question-id');
-    const hintsUsedInput = document.getElementById('sub-hints-used');
-    const pointsAwardedInput = document.getElementById('sub-points-awarded');
-    const previewContainer = document.getElementById('sub-calc-preview');
-
-    if (!questionIdInput || !hintsUsedInput || !pointsAwardedInput || !previewContainer) return;
-
-    const questionIdVal = questionIdInput.value.trim();
-    const hintsUsedVal = hintsUsedInput.value.trim();
-
-    if (!questionIdVal) {
-        previewContainer.style.display = 'none';
-        return;
-    }
-
-    // Validate Question ID and Hints Used first
-    const validation = validateVolunteerInputs({
-        questionIdStr: questionIdVal,
-        hintsUsedStr: hintsUsedVal || '0',
-        attemptsStr: '1'
-    });
-
-    if (!validation.isValid) {
-        previewContainer.style.display = 'none';
-        document.getElementById('preview-question-id').textContent = '-';
-        document.getElementById('preview-original-points').textContent = '0';
-        document.getElementById('preview-hints-used').textContent = '0';
-        document.getElementById('preview-hint-penalty').textContent = '0';
-        document.getElementById('preview-final-points').textContent = '0';
-        pointsAwardedInput.value = '0';
-
-        Utils.showToast(validation.message, 'error');
-        return;
-    }
-
-    try {
-        const question = await CodeQuestAPI.getQuestion(parseInt(questionIdVal));
-        if (question) {
-            const originalPoints = question.points !== undefined ? question.points : 0;
-            const penalty = Utils.calculateHintPenalty(parseInt(hintsUsedVal) || 0);
-            const finalPoints = Math.max(0, originalPoints - penalty);
-
-            document.getElementById('preview-question-id').textContent = question.id;
-            document.getElementById('preview-original-points').textContent = originalPoints;
-            document.getElementById('preview-hints-used').textContent = hintsUsedVal;
-            document.getElementById('preview-hint-penalty').textContent = penalty > 0 ? `-${penalty}` : `0`;
-            document.getElementById('preview-final-points').textContent = finalPoints;
-
-            pointsAwardedInput.value = finalPoints;
-            previewContainer.style.display = 'flex';
-        } else {
-            previewContainer.style.display = 'none';
-            Utils.showToast('Question ID does not exist.', 'error');
-        }
-    } catch (err) {
-        console.error('Failed to fetch question for preview:', err);
-        previewContainer.style.display = 'none';
-    }
-}
 
 async function validateFormInputsRealTime() {
     const questionIdInput = document.getElementById('sub-question-id');
@@ -609,12 +537,12 @@ function bindVolunteerFormListeners() {
     const pointsAwardedInput = document.getElementById('sub-points-awarded');
 
     if (questionIdInput) {
-        questionIdInput.addEventListener('input', updateSubmissionPreview);
-        questionIdInput.addEventListener('blur', updateSubmissionPreview);
+        questionIdInput.addEventListener('input', validateFormInputsRealTime);
+        questionIdInput.addEventListener('blur', validateFormInputsRealTime);
     }
     if (hintsUsedInput) {
-        hintsUsedInput.addEventListener('input', updateSubmissionPreview);
-        hintsUsedInput.addEventListener('blur', updateSubmissionPreview);
+        hintsUsedInput.addEventListener('input', validateFormInputsRealTime);
+        hintsUsedInput.addEventListener('blur', validateFormInputsRealTime);
     }
     if (attemptsInput) {
         attemptsInput.addEventListener('input', validateFormInputsRealTime);
